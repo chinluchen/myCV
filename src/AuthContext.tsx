@@ -26,7 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 10000);
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log("Auth state changed:", firebaseUser ? "User logged in" : "No user");
+      console.log("Auth state changed:", firebaseUser ? `User: ${firebaseUser.email}` : "No user");
       try {
         if (firebaseUser) {
           setUser(firebaseUser);
@@ -34,25 +34,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userDocRef = doc(db, 'users', firebaseUser.uid);
           const userDoc = await getDoc(userDocRef);
           
+          let currentRole: 'admin' | 'user' = 'user';
+
           if (userDoc.exists()) {
-            setRole(userDoc.data().role);
+            currentRole = userDoc.data().role;
+            setRole(currentRole);
           } else {
             const userEmail = firebaseUser.email || "";
-            const defaultRole = userEmail === 'chinlu0322@gmail.com' ? 'admin' : 'user';
+            currentRole = userEmail === 'chinlu0322@gmail.com' ? 'admin' : 'user';
             try {
               await setDoc(userDocRef, {
                 uid: firebaseUser.uid,
                 email: userEmail,
                 displayName: firebaseUser.displayName,
                 photoURL: firebaseUser.photoURL,
-                role: defaultRole,
+                role: currentRole,
                 createdAt: serverTimestamp()
               });
             } catch (e) {
               console.error("Failed to create user doc:", e);
             }
-            setRole(defaultRole);
+            setRole(currentRole);
           }
+          console.log("Assigned role:", currentRole);
         } else {
           setUser(null);
           setRole(null);

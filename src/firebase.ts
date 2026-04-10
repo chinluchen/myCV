@@ -23,6 +23,7 @@ export {
   onAuthStateChanged,
   doc,
   onSnapshot,
+  setDoc,
   updateDoc,
   collection,
   addDoc,

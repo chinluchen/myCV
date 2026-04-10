@@ -29,7 +29,7 @@ import {
   signOut,
   doc,
   onSnapshot,
-  updateDoc,
+  setDoc,
   collection,
   addDoc,
   deleteDoc,
@@ -153,11 +153,12 @@ export default function App() {
   // 3. 實作後台編輯邏輯 (儲存功能)
   const handleSaveResume = async () => {
     try {
-      await updateDoc(doc(db, 'resume_data', 'main'), { ...editData });
+      // 使用 setDoc 並開啟 merge，確保文件不存在時也能建立
+      await setDoc(doc(db, 'resume_data', 'main'), { ...editData }, { merge: true });
       setIsEditing(false);
     } catch (err) {
       console.error("Save failed:", err);
-      alert("儲存失敗，請確認權限");
+      alert("儲存失敗，請確認權限。錯誤訊息：" + (err instanceof Error ? err.message : String(err)));
     }
   };
 
@@ -214,6 +215,7 @@ export default function App() {
                 {isEditing ? <X size={18} /> : <Edit size={18} />}
               </button>
             )}
+            <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">{role}</span>
             <button onClick={() => signOut(auth)} className="text-gray-400 hover:text-red-500"><LogOut size={18} /></button>
           </div>
         ) : (
