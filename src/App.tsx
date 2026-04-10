@@ -4,7 +4,8 @@ import {
   LogIn,
   LogOut,
   Github,
-  X
+  X,
+  User
 } from 'lucide-react';
 import { useAuth } from './AuthContext';
 import { 
@@ -120,12 +121,30 @@ export default function App() {
       <ResumeView />
 
       {user && !isLoggedIn && !authLoading && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-amber-50 border border-amber-200 px-6 py-3 rounded-2xl shadow-lg flex items-center gap-3">
-          <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
-          <p className="text-sm text-amber-800 font-medium">
-            您已登入，但尚未獲得管理員權限。請聯繫系統管理員。
-          </p>
-          <button onClick={() => signOut(auth)} className="text-xs font-bold text-amber-900 underline ml-2">登出</button>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white border border-gray-200 px-8 py-6 rounded-[2rem] shadow-2xl flex flex-col items-center gap-4 max-w-md w-full animate-in fade-in slide-in-from-bottom-4">
+          <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600">
+            <User size={24} />
+          </div>
+          <div className="text-center">
+            <p className="text-lg font-bold text-gray-900">權限不足</p>
+            <p className="text-sm text-gray-500 mt-1">
+              您已登入，但目前的帳號尚未獲得管理員權限。
+            </p>
+          </div>
+          <div className="w-full bg-gray-50 p-4 rounded-xl space-y-2">
+            <div className="flex justify-between text-[10px] font-mono text-gray-400">
+              <span>EMAIL:</span>
+              <span className="text-gray-600">{user.email || "Hidden (請在 GitHub 設定公開 Email)"}</span>
+            </div>
+            <div className="flex justify-between text-[10px] font-mono text-gray-400">
+              <span>UID:</span>
+              <span className="text-gray-600">{user.uid}</span>
+            </div>
+          </div>
+          <div className="flex gap-3 w-full">
+            <button onClick={() => signOut(auth)} className="flex-1 bg-black text-white py-3 rounded-xl font-bold text-sm">登出帳號</button>
+            <button onClick={() => setShowLogin(false)} className="flex-1 border border-gray-200 py-3 rounded-xl font-bold text-sm text-gray-500">關閉</button>
+          </div>
         </div>
       )}
     </div>

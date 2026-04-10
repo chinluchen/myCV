@@ -1,15 +1,23 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // 檢查是否為管理員
     function isAdmin() {
-      return request.auth != null && request.auth.token.email == "chinlu0322@gmail.com";
+      return request.auth != null && (
+        // 1. 透過 Email 直接判斷 (包含 GitHub 關聯的 Email)
+        request.auth.token.email == "chinlu0322@gmail.com" ||
+        // 2. 透過資料庫中的角色欄位判斷
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
     }
 
+    // 履歷資料：所有人可讀，管理員可寫
     match /resume_data/main {
       allow read: if true;
       allow write: if isAdmin();
     }
 
+    // 經歷與專案：所有人可讀，管理員可寫
     match /experience/{id} {
       allow read: if true;
       allow write: if isAdmin();
@@ -20,8 +28,10 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // 使用者資料：本人可讀寫，管理員可讀
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
