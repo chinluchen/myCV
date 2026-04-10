@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Github, 
@@ -6,564 +6,277 @@ import {
   Mail, 
   ExternalLink, 
   ChevronRight, 
-  Layout, 
-  FileText, 
-  User, 
-  LogIn,
-  LogOut,
-  Plus,
-  Trash2,
-  Edit,
-  Save,
-  X,
-  Menu
+  Download,
+  MapPin,
+  Briefcase,
+  GraduationCap,
+  Code2,
+  User,
+  Phone,
+  Globe
 } from 'lucide-react';
-import { useAuth } from './AuthContext';
-import { auth, db, googleProvider } from './firebase';
-import { signInWithPopup, signOut } from 'firebase/auth';
-import { 
-  collection, 
-  addDoc, 
-  onSnapshot, 
-  query, 
-  orderBy, 
-  deleteDoc, 
-  doc, 
-  updateDoc, 
-  serverTimestamp,
-  Timestamp
-} from 'firebase/firestore';
-import { OperationType, handleFirestoreError } from './lib/utils';
-import ReactMarkdown from 'react-markdown';
+import { cn } from './lib/utils';
 
-// --- Types ---
-interface Project {
-  id: string;
-  title: string;
-  description: string;
-  imageUrl: string;
-  link: string;
-  tags: string[];
-  createdAt: Timestamp;
-}
-
-interface Post {
-  id: string;
-  title: string;
-  content: string;
-  excerpt: string;
-  slug: string;
-  published: boolean;
-  createdAt: Timestamp;
-}
+// --- Resume Data (Easily editable here) ---
+const RESUME_DATA = {
+  name: "您的姓名",
+  title: "全端工程師 / 使用者體驗設計師",
+  location: "台灣, 台北",
+  email: "your.email@example.com",
+  phone: "+886 912 345 678",
+  website: "www.yourwebsite.com",
+  about: "我是一位熱衷於打造直觀且高效數位產品的開發者。擁有 5 年以上在網頁開發與 UI/UX 設計方面的經驗，擅長將複雜的需求轉化為簡潔、優雅的解決方案。我追求程式碼的品質，同時也極度重視使用者的互動體驗。",
+  skills: [
+    { category: "前端開發", items: ["React", "TypeScript", "Tailwind CSS", "Next.js", "Framer Motion"] },
+    { category: "後端開發", items: ["Node.js", "Express", "Firebase", "PostgreSQL", "GraphQL"] },
+    { category: "設計工具", items: ["Figma", "Adobe XD", "Spline (3D)", "Principle"] },
+    { category: "其他技能", items: ["Git", "Docker", "CI/CD", "AWS", "Agile/Scrum"] }
+  ],
+  experience: [
+    {
+      company: "某知名科技公司",
+      role: "資深全端工程師",
+      period: "2022 - 至今",
+      description: "負責核心產品的前端架構優化，將載入速度提升了 40%。領導 5 人開發小組完成多項跨平台專案。",
+      achievements: ["導入 TypeScript 減少了 30% 的運行時錯誤", "設計並實作了公司內部的 UI 組件庫"]
+    },
+    {
+      company: "創新數位工作室",
+      role: "網頁開發工程師",
+      period: "2020 - 2022",
+      description: "開發超過 20 個響應式網站與電子商務平台。與設計師緊密合作，確保視覺稿的高還原度。",
+      achievements: ["優化 SEO 讓客戶網站流量平均成長 50%", "實作自動化測試流程"]
+    }
+  ],
+  education: [
+    {
+      school: "國立某某大學",
+      degree: "資訊工程學系 學士",
+      period: "2016 - 2020"
+    }
+  ],
+  projects: [
+    {
+      title: "AI 驅動的專案管理工具",
+      description: "整合 Gemini API 的自動化任務分配系統。",
+      tags: ["React", "Firebase", "AI"],
+      link: "#"
+    },
+    {
+      title: "互動式 3D 數據看板",
+      description: "使用 Three.js 呈現的即時物流監控介面。",
+      tags: ["Three.js", "D3.js", "WebSocket"],
+      link: "#"
+    }
+  ]
+};
 
 // --- Components ---
 
-const Navbar = ({ activeTab, setActiveTab }: { activeTab: string, setActiveTab: (t: string) => void }) => {
-  const { user, role } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  const handleLogin = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error("Login failed", error);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Logout failed", error);
-    }
-  };
-
-  const navItems = [
-    { id: 'home', label: 'Home', icon: Layout },
-    { id: 'projects', label: 'Projects', icon: Layout },
-    { id: 'blog', label: 'Blog', icon: FileText },
-  ];
-
-  if (role === 'admin') {
-    navItems.push({ id: 'admin', label: 'Admin', icon: User });
-  }
-
-  return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16 items-center">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setActiveTab('home')}>
-            <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">C</span>
-            </div>
-            <span className="font-bold text-xl tracking-tight">Portfolio</span>
-          </div>
-
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-8">
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={cn(
-                  "text-sm font-medium transition-colors hover:text-black",
-                  activeTab === item.id ? "text-black" : "text-gray-500"
-                )}
-              >
-                {item.label}
-              </button>
-            ))}
-            {user ? (
-              <div className="flex items-center gap-4 pl-4 border-l border-gray-200">
-                <img src={user.photoURL || ''} alt="" className="w-8 h-8 rounded-full border border-gray-200" referrerPolicy="no-referrer" />
-                <button onClick={handleLogout} className="text-gray-500 hover:text-red-600 transition-colors">
-                  <LogOut size={18} />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={handleLogin}
-                className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-gray-800 transition-all"
-              >
-                <LogIn size={16} />
-                Login
-              </button>
-            )}
-          </div>
-
-          {/* Mobile Menu Toggle */}
-          <button className="md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-            <Menu size={24} />
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Nav */}
-      <AnimatePresence>
-        {isMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-white border-b border-gray-100 overflow-hidden"
-          >
-            <div className="px-4 py-4 space-y-4">
-              {navItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => { setActiveTab(item.id); setIsMenuOpen(false); }}
-                  className="block w-full text-left text-lg font-medium text-gray-600"
-                >
-                  {item.label}
-                </button>
-              ))}
-              {!user && (
-                <button
-                  onClick={handleLogin}
-                  className="w-full flex items-center justify-center gap-2 bg-black text-white py-3 rounded-xl font-medium"
-                >
-                  <LogIn size={18} />
-                  Login
-                </button>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </nav>
-  );
-};
-
-const Home = () => (
-  <div className="pt-32 pb-20 px-4 max-w-7xl mx-auto">
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-3xl"
-    >
-      <h1 className="text-6xl md:text-8xl font-bold tracking-tighter leading-none mb-8">
-        Building digital <br />
-        <span className="text-gray-400">experiences.</span>
-      </h1>
-      <p className="text-xl text-gray-600 mb-12 leading-relaxed max-w-2xl">
-        I'm a full-stack developer and designer focused on creating clean, 
-        functional, and user-centric digital products. Welcome to my personal space.
-      </p>
-      <div className="flex flex-wrap gap-4">
-        <button className="bg-black text-white px-8 py-4 rounded-full font-medium flex items-center gap-2 hover:scale-105 transition-transform">
-          View Projects <ChevronRight size={20} />
-        </button>
-        <div className="flex items-center gap-4 px-4">
-          <a href="#" className="text-gray-400 hover:text-black transition-colors"><Github size={24} /></a>
-          <a href="#" className="text-gray-400 hover:text-black transition-colors"><Linkedin size={24} /></a>
-          <a href="#" className="text-gray-400 hover:text-black transition-colors"><Mail size={24} /></a>
-        </div>
-      </div>
-    </motion.div>
+const SectionHeading = ({ children, icon: Icon }: { children: React.ReactNode, icon: any }) => (
+  <div className="flex items-center gap-3 mb-8">
+    <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white">
+      <Icon size={20} />
+    </div>
+    <h2 className="text-3xl font-bold tracking-tight">{children}</h2>
   </div>
 );
 
-const Projects = () => {
-  const [projects, setProjects] = React.useState<Project[]>([]);
-
-  React.useEffect(() => {
-    const q = query(collection(db, 'projects'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
-      setProjects(data);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'projects'));
-    return () => unsubscribe();
-  }, []);
+export default function App() {
+  const [activeSection, setActiveSection] = useState('about');
 
   return (
-    <div className="pt-32 pb-20 px-4 max-w-7xl mx-auto">
-      <div className="mb-16">
-        <h2 className="text-4xl font-bold mb-4">Selected Projects</h2>
-        <p className="text-gray-500">A collection of things I've built recently.</p>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-        {projects.map((project, idx) => (
+    <div className="min-h-screen bg-[#F8F9FA] text-black font-sans selection:bg-black selection:text-white">
+      {/* Navigation */}
+      <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-white/70 backdrop-blur-xl border border-gray-200/50 rounded-full px-6 py-3 shadow-sm">
+        <div className="flex items-center gap-8">
+          {['About', 'Experience', 'Projects', 'Contact'].map((item) => (
+            <button
+              key={item}
+              onClick={() => {
+                const element = document.getElementById(item.toLowerCase());
+                element?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="text-sm font-medium text-gray-500 hover:text-black transition-colors"
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <header className="pt-32 pb-20 px-4">
+        <div className="max-w-5xl mx-auto">
           <motion.div
-            key={project.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.1 }}
-            className="group cursor-pointer"
+            className="flex flex-col md:flex-row gap-12 items-center md:items-start"
           >
-            <div className="aspect-video bg-gray-100 rounded-3xl overflow-hidden mb-6 relative">
+            <div className="w-48 h-48 bg-gray-200 rounded-[3rem] overflow-hidden rotate-3 hover:rotate-0 transition-transform duration-500 shadow-xl">
               <img 
-                src={project.imageUrl || `https://picsum.photos/seed/${project.id}/800/450`} 
-                alt={project.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                src="https://picsum.photos/seed/profile/400/400" 
+                alt="Profile" 
+                className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
               />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <ExternalLink className="text-white" size={32} />
+            </div>
+            <div className="flex-1 text-center md:text-left">
+              <motion.span 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="inline-block px-4 py-1.5 bg-black text-white text-xs font-bold rounded-full mb-6 tracking-widest uppercase"
+              >
+                Available for work
+              </motion.span>
+              <h1 className="text-6xl md:text-7xl font-bold tracking-tighter leading-none mb-6">
+                {RESUME_DATA.name}
+              </h1>
+              <p className="text-2xl text-gray-500 font-medium mb-8">
+                {RESUME_DATA.title}
+              </p>
+              <div className="flex flex-wrap justify-center md:justify-start gap-6 text-gray-400">
+                <div className="flex items-center gap-2"><MapPin size={18} /> {RESUME_DATA.location}</div>
+                <div className="flex items-center gap-2"><Mail size={18} /> {RESUME_DATA.email}</div>
+                <div className="flex items-center gap-2"><Globe size={18} /> {RESUME_DATA.website}</div>
               </div>
             </div>
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-2xl font-bold mb-2">{project.title}</h3>
-                <p className="text-gray-600 mb-4">{project.description}</p>
-                <div className="flex gap-2">
-                  {project.tags?.map(tag => (
-                    <span key={tag} className="text-xs font-medium bg-gray-100 px-3 py-1 rounded-full uppercase tracking-wider text-gray-500">
-                      {tag}
+          </motion.div>
+        </div>
+      </header>
+
+      <main className="max-w-5xl mx-auto px-4 space-y-32 pb-32">
+        {/* About */}
+        <section id="about" className="scroll-mt-32">
+          <SectionHeading icon={User}>關於我</SectionHeading>
+          <p className="text-xl text-gray-600 leading-relaxed max-w-3xl">
+            {RESUME_DATA.about}
+          </p>
+        </section>
+
+        {/* Skills */}
+        <section id="skills">
+          <SectionHeading icon={Code2}>專業技能</SectionHeading>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {RESUME_DATA.skills.map((skillGroup) => (
+              <div key={skillGroup.category} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                <h3 className="font-bold mb-4 text-gray-400 uppercase text-xs tracking-widest">{skillGroup.category}</h3>
+                <div className="flex flex-wrap gap-2">
+                  {skillGroup.items.map(item => (
+                    <span key={item} className="px-3 py-1 bg-gray-50 rounded-lg text-sm font-medium border border-gray-100">
+                      {item}
                     </span>
                   ))}
                 </div>
               </div>
-            </div>
-          </motion.div>
-        ))}
-        {projects.length === 0 && (
-          <div className="col-span-full py-20 text-center text-gray-400 border-2 border-dashed border-gray-100 rounded-3xl">
-            No projects added yet.
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const Blog = () => {
-  const [posts, setPosts] = React.useState<Post[]>([]);
-
-  React.useEffect(() => {
-    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post))
-        .filter(p => p.published);
-      setPosts(data);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'posts'));
-    return () => unsubscribe();
-  }, []);
-
-  return (
-    <div className="pt-32 pb-20 px-4 max-w-3xl mx-auto">
-      <div className="mb-16">
-        <h2 className="text-4xl font-bold mb-4">Writing</h2>
-        <p className="text-gray-500">Thoughts on code, design, and life.</p>
-      </div>
-      <div className="space-y-16">
-        {posts.map((post, idx) => (
-          <motion.article
-            key={post.id}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: idx * 0.1 }}
-            className="group cursor-pointer"
-          >
-            <span className="text-sm text-gray-400 mb-2 block">
-              {post.createdAt?.toDate().toLocaleDateString()}
-            </span>
-            <h3 className="text-3xl font-bold mb-4 group-hover:text-gray-600 transition-colors">
-              {post.title}
-            </h3>
-            <p className="text-gray-600 leading-relaxed mb-6">
-              {post.excerpt}
-            </p>
-            <div className="flex items-center gap-2 text-black font-medium">
-              Read article <ChevronRight size={16} />
-            </div>
-          </motion.article>
-        ))}
-        {posts.length === 0 && (
-          <div className="py-20 text-center text-gray-400 border-2 border-dashed border-gray-100 rounded-3xl">
-            No blog posts published yet.
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const Admin = () => {
-  const { role } = useAuth();
-  const [projects, setProjects] = React.useState<Project[]>([]);
-  const [posts, setPosts] = React.useState<Post[]>([]);
-  const [isAddingProject, setIsAddingProject] = useState(false);
-  const [isAddingPost, setIsAddingPost] = useState(false);
-
-  // Form states
-  const [newProject, setNewProject] = useState({ title: '', description: '', link: '', tags: '' });
-  const [newPost, setNewPost] = useState({ title: '', content: '', excerpt: '', slug: '', published: true });
-
-  React.useEffect(() => {
-    if (role !== 'admin') return;
-
-    const unsubProjects = onSnapshot(query(collection(db, 'projects'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setProjects(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project)));
-    });
-
-    const unsubPosts = onSnapshot(query(collection(db, 'posts'), orderBy('createdAt', 'desc')), (snapshot) => {
-      setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post)));
-    });
-
-    return () => { unsubProjects(); unsubPosts(); };
-  }, [role]);
-
-  const handleAddProject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await addDoc(collection(db, 'projects'), {
-        ...newProject,
-        tags: newProject.tags.split(',').map(t => t.trim()),
-        createdAt: serverTimestamp()
-      });
-      setIsAddingProject(false);
-      setNewProject({ title: '', description: '', link: '', tags: '' });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, 'projects');
-    }
-  };
-
-  const handleAddPost = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await addDoc(collection(db, 'posts'), {
-        ...newPost,
-        createdAt: serverTimestamp()
-      });
-      setIsAddingPost(false);
-      setNewPost({ title: '', content: '', excerpt: '', slug: '', published: true });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, 'posts');
-    }
-  };
-
-  const deleteItem = async (col: string, id: string) => {
-    if (!confirm('Are you sure?')) return;
-    try {
-      await deleteDoc(doc(db, col, id));
-    } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, col);
-    }
-  };
-
-  if (role !== 'admin') return <div className="pt-32 text-center">Unauthorized</div>;
-
-  return (
-    <div className="pt-32 pb-20 px-4 max-w-7xl mx-auto">
-      <h2 className="text-4xl font-bold mb-12">Admin Dashboard</h2>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-        {/* Projects Management */}
-        <section>
-          <div className="flex justify-between items-center mb-8">
-            <h3 className="text-2xl font-bold">Projects</h3>
-            <button 
-              onClick={() => setIsAddingProject(true)}
-              className="bg-black text-white p-2 rounded-lg hover:scale-105 transition-transform"
-            >
-              <Plus size={20} />
-            </button>
-          </div>
-
-          {isAddingProject && (
-            <motion.form 
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              onSubmit={handleAddProject} 
-              className="bg-gray-50 p-6 rounded-2xl mb-8 space-y-4"
-            >
-              <input 
-                placeholder="Title" 
-                className="w-full p-3 rounded-xl border border-gray-200"
-                value={newProject.title}
-                onChange={e => setNewProject({...newProject, title: e.target.value})}
-                required
-              />
-              <textarea 
-                placeholder="Description" 
-                className="w-full p-3 rounded-xl border border-gray-200"
-                value={newProject.description}
-                onChange={e => setNewProject({...newProject, description: e.target.value})}
-                required
-              />
-              <input 
-                placeholder="Tags (comma separated)" 
-                className="w-full p-3 rounded-xl border border-gray-200"
-                value={newProject.tags}
-                onChange={e => setNewProject({...newProject, tags: e.target.value})}
-              />
-              <div className="flex gap-2">
-                <button type="submit" className="bg-black text-white px-6 py-2 rounded-xl font-medium">Save</button>
-                <button type="button" onClick={() => setIsAddingProject(false)} className="text-gray-500">Cancel</button>
-              </div>
-            </motion.form>
-          )}
-
-          <div className="space-y-4">
-            {projects.map(p => (
-              <div key={p.id} className="flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl">
-                <span className="font-medium">{p.title}</span>
-                <button onClick={() => deleteItem('projects', p.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg">
-                  <Trash2 size={18} />
-                </button>
-              </div>
             ))}
           </div>
         </section>
 
-        {/* Blog Management */}
-        <section>
-          <div className="flex justify-between items-center mb-8">
-            <h3 className="text-2xl font-bold">Blog Posts</h3>
-            <button 
-              onClick={() => setIsAddingPost(true)}
-              className="bg-black text-white p-2 rounded-lg hover:scale-105 transition-transform"
-            >
-              <Plus size={20} />
-            </button>
-          </div>
-
-          {isAddingPost && (
-            <motion.form 
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              onSubmit={handleAddPost} 
-              className="bg-gray-50 p-6 rounded-2xl mb-8 space-y-4"
-            >
-              <input 
-                placeholder="Title" 
-                className="w-full p-3 rounded-xl border border-gray-200"
-                value={newPost.title}
-                onChange={e => setNewPost({...newPost, title: e.target.value})}
-                required
-              />
-              <input 
-                placeholder="Slug" 
-                className="w-full p-3 rounded-xl border border-gray-200"
-                value={newPost.slug}
-                onChange={e => setNewPost({...newPost, slug: e.target.value})}
-                required
-              />
-              <textarea 
-                placeholder="Excerpt" 
-                className="w-full p-3 rounded-xl border border-gray-200"
-                value={newPost.excerpt}
-                onChange={e => setNewPost({...newPost, excerpt: e.target.value})}
-              />
-              <textarea 
-                placeholder="Content (Markdown)" 
-                className="w-full p-3 rounded-xl border border-gray-200 h-40"
-                value={newPost.content}
-                onChange={e => setNewPost({...newPost, content: e.target.value})}
-                required
-              />
-              <div className="flex gap-2">
-                <button type="submit" className="bg-black text-white px-6 py-2 rounded-xl font-medium">Save</button>
-                <button type="button" onClick={() => setIsAddingPost(false)} className="text-gray-500">Cancel</button>
-              </div>
-            </motion.form>
-          )}
-
-          <div className="space-y-4">
-            {posts.map(p => (
-              <div key={p.id} className="flex justify-between items-center p-4 bg-white border border-gray-100 rounded-xl">
-                <div>
-                  <span className="font-medium block">{p.title}</span>
-                  <span className="text-xs text-gray-400">{p.published ? 'Published' : 'Draft'}</span>
+        {/* Experience */}
+        <section id="experience" className="scroll-mt-32">
+          <SectionHeading icon={Briefcase}>工作經歷</SectionHeading>
+          <div className="space-y-12">
+            {RESUME_DATA.experience.map((exp, idx) => (
+              <motion.div 
+                key={idx}
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                className="relative pl-8 border-l-2 border-gray-100"
+              >
+                <div className="absolute -left-[9px] top-0 w-4 h-4 bg-black rounded-full border-4 border-white" />
+                <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-4">
+                  <div>
+                    <h3 className="text-2xl font-bold">{exp.role}</h3>
+                    <p className="text-lg text-gray-500">{exp.company}</p>
+                  </div>
+                  <span className="text-sm font-bold text-gray-400 mt-2 md:mt-0">{exp.period}</span>
                 </div>
-                <button onClick={() => deleteItem('posts', p.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg">
-                  <Trash2 size={18} />
-                </button>
-              </div>
+                <p className="text-gray-600 mb-4 max-w-2xl">{exp.description}</p>
+                <ul className="space-y-2">
+                  {exp.achievements.map((ach, i) => (
+                    <li key={i} className="flex items-center gap-2 text-sm text-gray-500">
+                      <div className="w-1.5 h-1.5 bg-gray-300 rounded-full" />
+                      {ach}
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
             ))}
           </div>
         </section>
-      </div>
-    </div>
-  );
-};
 
-// --- Main App Component ---
+        {/* Projects */}
+        <section id="projects" className="scroll-mt-32">
+          <SectionHeading icon={Layout}>精選專案</SectionHeading>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {RESUME_DATA.projects.map((project, idx) => (
+              <motion.div
+                key={idx}
+                whileHover={{ y: -5 }}
+                className="group bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all"
+              >
+                <div className="flex justify-between items-start mb-6">
+                  <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center group-hover:bg-black group-hover:text-white transition-colors">
+                    <ExternalLink size={20} />
+                  </div>
+                  <div className="flex gap-2">
+                    {project.tags.map(tag => (
+                      <span key={tag} className="text-[10px] font-bold uppercase tracking-widest text-gray-400 bg-gray-50 px-2 py-1 rounded">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <h3 className="text-2xl font-bold mb-3">{project.title}</h3>
+                <p className="text-gray-500 mb-6">{project.description}</p>
+                <a href={project.link} className="inline-flex items-center gap-2 font-bold text-sm hover:gap-3 transition-all">
+                  查看詳情 <ChevronRight size={16} />
+                </a>
+              </motion.div>
+            ))}
+          </div>
+        </section>
 
-import { cn } from './lib/utils';
-
-export default function App() {
-  const [activeTab, setActiveTab] = useState('home');
-  const { loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <motion.div 
-          animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
-          transition={{ repeat: Infinity, duration: 2 }}
-          className="w-12 h-12 bg-black rounded-xl"
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-white text-black font-sans selection:bg-black selection:text-white">
-      <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
-      
-      <main>
-        <AnimatePresence mode="wait">
-          {activeTab === 'home' && <Home key="home" />}
-          {activeTab === 'projects' && <Projects key="projects" />}
-          {activeTab === 'blog' && <Blog key="blog" />}
-          {activeTab === 'admin' && <Admin key="admin" />}
-        </AnimatePresence>
+        {/* Contact */}
+        <section id="contact" className="scroll-mt-32">
+          <div className="bg-black text-white p-12 md:p-20 rounded-[3rem] text-center">
+            <h2 className="text-4xl md:text-6xl font-bold mb-8 tracking-tight">準備好開始合作了嗎？</h2>
+            <p className="text-gray-400 text-xl mb-12 max-w-xl mx-auto">
+              我目前正在尋找新的機會。如果您有任何想法或專案想聊聊，歡迎隨時聯繫我。
+            </p>
+            <div className="flex flex-wrap justify-center gap-4">
+              <a 
+                href={`mailto:${RESUME_DATA.email}`}
+                className="bg-white text-black px-8 py-4 rounded-full font-bold flex items-center gap-2 hover:scale-105 transition-transform"
+              >
+                發送郵件 <Mail size={20} />
+              </a>
+              <button className="bg-white/10 backdrop-blur-md text-white px-8 py-4 rounded-full font-bold flex items-center gap-2 hover:bg-white/20 transition-all">
+                下載履歷 <Download size={20} />
+              </button>
+            </div>
+          </div>
+        </section>
       </main>
 
-      <footer className="py-12 border-t border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-8">
-          <div className="text-sm text-gray-400">
-            © 2026 Personal Portfolio. Built with React & Firebase.
+      <footer className="py-12 border-t border-gray-100 bg-white">
+        <div className="max-w-5xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="text-sm text-gray-400 font-medium">
+            © 2026 {RESUME_DATA.name}. Built with React & Tailwind.
           </div>
           <div className="flex gap-8">
-            <a href="#" className="text-sm font-medium hover:text-black transition-colors">Github</a>
-            <a href="#" className="text-sm font-medium hover:text-black transition-colors">Twitter</a>
-            <a href="#" className="text-sm font-medium hover:text-black transition-colors">LinkedIn</a>
+            <a href="#" className="text-gray-400 hover:text-black transition-colors"><Github size={20} /></a>
+            <a href="#" className="text-gray-400 hover:text-black transition-colors"><Linkedin size={20} /></a>
+            <a href="#" className="text-gray-400 hover:text-black transition-colors"><Mail size={20} /></a>
           </div>
         </div>
       </footer>
     </div>
   );
 }
+
+// Helper for layout
+import { Layout } from 'lucide-react';
