@@ -17,8 +17,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 安全機制：如果 10 秒後還在載入，強制關閉載入狀態並顯示錯誤
+    const timer = setTimeout(() => {
+      if (loading) {
+        console.warn("Auth check timed out");
+        setLoading(false);
+      }
+    }, 10000);
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setLoading(true);
+      console.log("Auth state changed:", firebaseUser ? "User logged in" : "No user");
       try {
         if (firebaseUser) {
           setUser(firebaseUser);
@@ -29,17 +37,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (userDoc.exists()) {
             setRole(userDoc.data().role);
           } else {
-            // 如果 GitHub 沒提供 Email，則預設為 user 角色
             const userEmail = firebaseUser.email || "";
             const defaultRole = userEmail === 'chinlu0322@gmail.com' ? 'admin' : 'user';
-            await setDoc(userDocRef, {
-              uid: firebaseUser.uid,
-              email: userEmail,
-              displayName: firebaseUser.displayName,
-              photoURL: firebaseUser.photoURL,
-              role: defaultRole,
-              createdAt: serverTimestamp()
-            });
+            try {
+              await setDoc(userDocRef, {
+                uid: firebaseUser.uid,
+                email: userEmail,
+                displayName: firebaseUser.displayName,
+                photoURL: firebaseUser.photoURL,
+                role: defaultRole,
+                createdAt: serverTimestamp()
+              });
+            } catch (e) {
+              console.error("Failed to create user doc:", e);
+            }
             setRole(defaultRole);
           }
         } else {
@@ -50,10 +61,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error("Auth error:", error);
       } finally {
         setLoading(false);
+        clearTimeout(timer);
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      clearTimeout(timer);
+    };
   }, []);
 
   return (

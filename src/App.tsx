@@ -161,8 +161,6 @@ export default function App() {
     }
   };
 
-  if (authLoading) return <div className="min-h-screen flex items-center justify-center">載入中...</div>;
-
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-black font-sans selection:bg-black selection:text-white">
       {/* Login Modal */}
@@ -207,7 +205,9 @@ export default function App() {
           ))}
         </div>
         <div className="h-4 w-px bg-gray-200" />
-        {user ? (
+        {authLoading ? (
+          <div className="w-5 h-5 border-2 border-gray-200 border-t-gray-400 rounded-full animate-spin" />
+        ) : user ? (
           <div className="flex items-center gap-3">
             {isLoggedIn && (
               <button onClick={() => setIsEditing(!isEditing)} className={cn("p-2 rounded-full", isEditing ? "bg-black text-white" : "hover:bg-gray-100")}>
