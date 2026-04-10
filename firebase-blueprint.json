@@ -13,47 +13,46 @@
       },
       "required": ["uid", "email", "role"]
     },
+    "resume": {
+      "title": "Resume Data",
+      "description": "Global resume content",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "title": { "type": "string" },
+        "about": { "type": "string" },
+        "location": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "website": { "type": "string" }
+      }
+    },
+    "experience": {
+      "title": "Work Experience",
+      "type": "object",
+      "properties": {
+        "company": { "type": "string" },
+        "role": { "type": "string" },
+        "period": { "type": "string" },
+        "description": { "type": "string" },
+        "achievements": { "type": "array", "items": { "type": "string" } }
+      }
+    },
     "project": {
       "title": "Project",
-      "description": "Portfolio project item",
       "type": "object",
       "properties": {
         "title": { "type": "string" },
         "description": { "type": "string" },
-        "imageUrl": { "type": "string" },
-        "link": { "type": "string" },
         "tags": { "type": "array", "items": { "type": "string" } },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["title", "description", "createdAt"]
-    },
-    "post": {
-      "title": "Blog Post",
-      "description": "Markdown-based blog post",
-      "type": "object",
-      "properties": {
-        "title": { "type": "string" },
-        "content": { "type": "string" },
-        "excerpt": { "type": "string" },
-        "slug": { "type": "string" },
-        "published": { "type": "boolean" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["title", "content", "slug", "createdAt"]
+        "link": { "type": "string" }
+      }
     }
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": "user",
-      "description": "User profiles"
-    },
-    "/projects/{projectId}": {
-      "schema": "project",
-      "description": "Portfolio projects"
-    },
-    "/posts/{postId}": {
-      "schema": "post",
-      "description": "Blog posts"
-    }
+    "/users/{userId}": { "schema": "user", "description": "User profiles" },
+    "/content/resume": { "schema": "resume", "description": "Global resume data" },
+    "/experience/{expId}": { "schema": "experience", "description": "Work experiences" },
+    "/projects/{projectId}": { "schema": "project", "description": "Projects" }
   }
 }
