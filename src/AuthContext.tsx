@@ -19,31 +19,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        
-        const userDocRef = doc(db, 'users', firebaseUser.uid);
-        const userDoc = await getDoc(userDocRef);
-        
-        if (userDoc.exists()) {
-          setRole(userDoc.data().role);
+      try {
+        if (firebaseUser) {
+          setUser(firebaseUser);
+          
+          const userDocRef = doc(db, 'users', firebaseUser.uid);
+          const userDoc = await getDoc(userDocRef);
+          
+          if (userDoc.exists()) {
+            setRole(userDoc.data().role);
+          } else {
+            // 如果 GitHub 沒提供 Email，則預設為 user 角色
+            const userEmail = firebaseUser.email || "";
+            const defaultRole = userEmail === 'chinlu0322@gmail.com' ? 'admin' : 'user';
+            await setDoc(userDocRef, {
+              uid: firebaseUser.uid,
+              email: userEmail,
+              displayName: firebaseUser.displayName,
+              photoURL: firebaseUser.photoURL,
+              role: defaultRole,
+              createdAt: serverTimestamp()
+            });
+            setRole(defaultRole);
+          }
         } else {
-          const defaultRole = firebaseUser.email === 'chinlu0322@gmail.com' ? 'admin' : 'user';
-          await setDoc(userDocRef, {
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-            photoURL: firebaseUser.photoURL,
-            role: defaultRole,
-            createdAt: serverTimestamp()
-          });
-          setRole(defaultRole);
+          setUser(null);
+          setRole(null);
         }
-      } else {
-        setUser(null);
-        setRole(null);
+      } catch (error) {
+        console.error("Auth error:", error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();

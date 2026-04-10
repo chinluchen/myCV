@@ -106,7 +106,12 @@ export default function App() {
         const data = docSnap.data() as ResumeData;
         setResume(data);
         setEditData(data);
+      } else {
+        console.log("No resume data found, using defaults.");
+        // 如果雲端沒資料，就用預設值，不更新 state 即可
       }
+    }, (error) => {
+      console.error("Firestore error:", error);
     });
 
     const unsubExp = onSnapshot(query(collection(db, 'experience'), orderBy('period', 'desc')), (snap) => {
