@@ -117,14 +117,15 @@ export default function App() {
   }, []);
 
   const handleLogin = async () => {
+    console.log("Attempting login from domain:", window.location.hostname);
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (err: any) {
       console.error(err);
-      // 顯示具體的錯誤代碼，幫助診斷問題
       const errorCode = err.code || "unknown";
       const errorMessage = err.message || "未知錯誤";
-      alert(`登入失敗！\n錯誤代碼: ${errorCode}\n原因: ${errorMessage}\n\n請確保已在 Firebase Console 將 chinluchen.dev 加入「授權網域」。`);
+      const currentDomain = window.location.hostname;
+      alert(`登入失敗！\n\n偵測到的網域: ${currentDomain}\n錯誤代碼: ${errorCode}\n原因: ${errorMessage}\n\n請確認 Firebase Console 已「確實」加入此網域。`);
     }
   };
 
