@@ -52,6 +52,9 @@ export const AdminDashboard: React.FC = () => {
         setResume(docSnap.data() as ResumeData);
       }
       setLoading(false);
+    }, (err) => {
+      console.error("Resume snapshot error:", err);
+      setLoading(false);
     });
 
     const unsubExp = onSnapshot(query(collection(db, 'experience'), orderBy('period', 'desc')), (snap) => {

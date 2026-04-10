@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   LogIn,
+  LogOut,
   Github,
   X
 } from 'lucide-react';
@@ -10,7 +11,8 @@ import {
   auth, 
   signInWithEmailAndPassword, 
   signInWithPopup,
-  githubProvider
+  githubProvider,
+  signOut
 } from './firebase';
 import { ResumeView } from './components/ResumeView';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -19,6 +21,7 @@ export default function App() {
   const { user, role, loading: authLoading } = useAuth();
   const isLoggedIn = !!user && role === 'admin';
   
+  console.log("[App] State:", { user: user?.email, role, authLoading, isLoggedIn });
   const [showLogin, setShowLogin] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -98,6 +101,14 @@ export default function App() {
         <div className="h-4 w-px bg-gray-200" />
         {authLoading ? (
           <div className="w-5 h-5 border-2 border-gray-200 border-t-gray-400 rounded-full animate-spin" />
+        ) : user ? (
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">{role || 'User'}</span>
+            <button onClick={() => signOut(auth)} className="text-gray-400 hover:text-red-500 flex items-center gap-2">
+              <LogOut size={18} />
+              <span className="text-xs font-bold uppercase tracking-wider">Logout</span>
+            </button>
+          </div>
         ) : (
           <button onClick={() => setShowLogin(true)} className="text-gray-400 hover:text-black flex items-center gap-2">
             <LogIn size={18} />
@@ -107,6 +118,16 @@ export default function App() {
       </nav>
 
       <ResumeView />
+
+      {user && !isLoggedIn && !authLoading && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-amber-50 border border-amber-200 px-6 py-3 rounded-2xl shadow-lg flex items-center gap-3">
+          <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+          <p className="text-sm text-amber-800 font-medium">
+            您已登入，但尚未獲得管理員權限。請聯繫系統管理員。
+          </p>
+          <button onClick={() => signOut(auth)} className="text-xs font-bold text-amber-900 underline ml-2">登出</button>
+        </div>
+      )}
     </div>
   );
 }
