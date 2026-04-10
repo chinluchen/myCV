@@ -11,7 +11,8 @@ import {
   Globe
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { db, auth, signOut, doc, onSnapshot, setDoc, collection, addDoc, deleteDoc, query, orderBy } from '../firebase';
+import { db, doc, onSnapshot, setDoc, collection, addDoc, deleteDoc, query, orderBy } from '../firebase';
+import { useAuth } from '../AuthContext';
 
 interface ResumeData {
   name: string;
@@ -40,6 +41,7 @@ interface Project {
 }
 
 export const AdminDashboard: React.FC = () => {
+  const { logout } = useAuth();
   const [resume, setResume] = useState<ResumeData | null>(null);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -144,7 +146,7 @@ export const AdminDashboard: React.FC = () => {
             <Globe size={14} /> View Live Site
           </button>
           <button 
-            onClick={() => signOut(auth)}
+            onClick={() => logout()}
             className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-bold border border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-all uppercase tracking-widest"
           >
             <LogOut size={14} /> Terminate Session

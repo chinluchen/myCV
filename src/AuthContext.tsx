@@ -4,108 +4,59 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 interface AuthContextType {
-  user: User | null;
+  user: { uid: string; displayName: string; email: string } | null;
   role: 'admin' | 'user' | null;
   loading: boolean;
+  login: (username: string, pass: string) => Promise<void>;
+  logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, role: null, loading: true });
+const AuthContext = createContext<AuthContextType>({ 
+  user: null, 
+  role: null, 
+  loading: true,
+  login: async () => {},
+  logout: () => {}
+});
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<{ uid: string; displayName: string; email: string } | null>(null);
   const [role, setRole] = useState<'admin' | 'user' | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 安全機制：如果 10 秒後還在載入，強制關閉載入狀態並顯示錯誤
-    const timer = setTimeout(() => {
-      if (loading) {
-        console.warn("Auth check timed out");
-        setLoading(false);
-      }
-    }, 10000);
-
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log("Auth state changed:", firebaseUser ? `User: ${firebaseUser.email}` : "No user");
-      try {
-        if (firebaseUser) {
-          setUser(firebaseUser);
-          
-          const userDocRef = doc(db, 'users', firebaseUser.uid);
-          const userDoc = await getDoc(userDocRef);
-          
-          let currentRole: 'admin' | 'user' = 'user';
-          const adminUIDs = ['KqkRBETa9iXigqtgn0EILGXcl1V2'];
-          const isAdminUID = adminUIDs.includes(firebaseUser.uid);
-
-          if (userDoc.exists()) {
-            currentRole = userDoc.data().role;
-            // 如果 UID 在管理員名單中但文件裡不是 admin，則強制更新
-            if (isAdminUID && currentRole !== 'admin') {
-              currentRole = 'admin';
-              await setDoc(userDocRef, { role: 'admin' }, { merge: true });
-            }
-            setRole(currentRole);
-          } else {
-            // 檢查所有關聯的 Email (包含 GitHub 提供的)
-            const emails = [
-              firebaseUser.email,
-              ...firebaseUser.providerData.map(p => p.email)
-            ].filter(Boolean) as string[];
-
-            // 檢查 GitHub 帳號名稱 (displayName)
-            const isGitHubAdmin = firebaseUser.providerData.some(p => 
-              p.providerId === 'github.com' && 
-              (p.displayName?.toLowerCase() === 'chinluchen' || firebaseUser.displayName?.toLowerCase() === 'chinluchen')
-            );
-            
-            // 只有指定的 GitHub 帳號或 UID 才能賦予 admin 權限
-            currentRole = (isGitHubAdmin || isAdminUID) ? 'admin' : 'user';
-            
-            console.log("[Auth] Check Details:", { 
-              displayName: firebaseUser.displayName, 
-              providerData: firebaseUser.providerData.map(p => ({ id: p.providerId, name: p.displayName })),
-              isGitHubAdmin,
-              isAdminUID
-            });
-
-            try {
-              await setDoc(userDocRef, {
-                uid: firebaseUser.uid,
-                email: firebaseUser.email || (emails.length > 0 ? emails[0] : ""),
-                displayName: firebaseUser.displayName,
-                photoURL: firebaseUser.photoURL,
-                role: currentRole,
-                provider: firebaseUser.providerData.map(p => p.providerId),
-                lastLogin: serverTimestamp(),
-                createdAt: serverTimestamp()
-              });
-            } catch (e) {
-              console.error("Failed to create user doc:", e);
-            }
-            setRole(currentRole);
-          }
-          console.log("Assigned role:", currentRole);
-        } else {
-          setUser(null);
-          setRole(null);
-        }
-      } catch (error) {
-        console.error("Auth error:", error);
-      } finally {
-        setLoading(false);
-        clearTimeout(timer);
-      }
-    });
-
-    return () => {
-      unsubscribe();
-      clearTimeout(timer);
-    };
+    const savedUser = localStorage.getItem('auth_user');
+    if (savedUser) {
+      const parsed = JSON.parse(savedUser);
+      setUser(parsed);
+      setRole('admin');
+    }
+    setLoading(false);
   }, []);
 
+  const login = async (username: string, pass: string) => {
+    if (username === 'chinluchen' && pass === '0322') {
+      const adminUser = { 
+        uid: 'manual-admin-id', 
+        displayName: 'chinluchen', 
+        email: 'admin@local.host' 
+      };
+      setUser(adminUser);
+      setRole('admin');
+      localStorage.setItem('auth_user', JSON.stringify(adminUser));
+    } else {
+      throw new Error('帳號或密碼錯誤');
+    }
+  };
+
+  const logout = () => {
+    setUser(null);
+    setRole(null);
+    localStorage.removeItem('auth_user');
+  };
+
   return (
-    <AuthContext.Provider value={{ user, role, loading }}>
+    <AuthContext.Provider value={{ user, role, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
