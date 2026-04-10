@@ -6,7 +6,9 @@ service cloud.firestore {
       return request.auth != null && (
         // 1. 透過 Email 直接判斷 (包含 GitHub 關聯的 Email)
         request.auth.token.email == "chinlu0322@gmail.com" ||
-        // 2. 透過資料庫中的角色欄位判斷
+        // 2. 透過 UID 直接判斷 (GitHub 帳號 chinluchen)
+        request.auth.uid == "KqkRBETa9iXigqtgn0EILGXcl1V2" ||
+        // 3. 透過資料庫中的角色欄位判斷
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
       );
     }

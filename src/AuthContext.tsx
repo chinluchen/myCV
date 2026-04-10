@@ -35,9 +35,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userDoc = await getDoc(userDocRef);
           
           let currentRole: 'admin' | 'user' = 'user';
+          const adminUIDs = ['KqkRBETa9iXigqtgn0EILGXcl1V2'];
+          const isAdminUID = adminUIDs.includes(firebaseUser.uid);
 
           if (userDoc.exists()) {
             currentRole = userDoc.data().role;
+            // 如果 UID 在管理員名單中但文件裡不是 admin，則強制更新
+            if (isAdminUID && currentRole !== 'admin') {
+              currentRole = 'admin';
+              await setDoc(userDocRef, { role: 'admin' }, { merge: true });
+            }
             setRole(currentRole);
           } else {
             // 檢查所有關聯的 Email (包含 GitHub 提供的)
@@ -54,8 +61,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               (p.displayName?.toLowerCase() === 'chinluchen' || firebaseUser.displayName?.toLowerCase() === 'chinluchen')
             );
             
-            // 如果是指定的管理員 Email 或 GitHub 帳號，則賦予 admin 權限
-            currentRole = (isAdminEmail || isGitHubAdmin) ? 'admin' : 'user';
+            // 如果是指定的管理員 Email、GitHub 帳號或 UID，則賦予 admin 權限
+            currentRole = (isAdminEmail || isGitHubAdmin || isAdminUID) ? 'admin' : 'user';
             
             console.log("[Auth] Check Details:", { 
               emails, 
