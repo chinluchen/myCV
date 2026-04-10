@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { cn, OperationType, handleFirestoreError } from './lib/utils';
 import { useAuth } from './AuthContext';
-import { auth, db, googleProvider } from './firebase';
+import { auth, db, googleProvider, signInWithEmailAndPassword } from './firebase';
 import { signInWithPopup, signOut } from 'firebase/auth';
 import { 
   doc, 
@@ -95,6 +95,12 @@ export default function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<ResumeData>(DEFAULT_RESUME);
+  
+  // Login State
+  const [showLogin, setShowLogin] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
 
   // Fetch Data
   useEffect(() => {
@@ -116,16 +122,17 @@ export default function App() {
     return () => { unsubResume(); unsubExp(); unsubProj(); };
   }, []);
 
-  const handleLogin = async () => {
-    console.log("Attempting login from domain:", window.location.hostname);
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
     try {
-      await signInWithPopup(auth, googleProvider);
+      await signInWithEmailAndPassword(auth, email, password);
+      setShowLogin(false);
+      setEmail('');
+      setPassword('');
     } catch (err: any) {
       console.error(err);
-      const errorCode = err.code || "unknown";
-      const errorMessage = err.message || "未知錯誤";
-      const currentDomain = window.location.hostname;
-      alert(`登入失敗！\n\n偵測到的網域: ${currentDomain}\n錯誤代碼: ${errorCode}\n原因: ${errorMessage}\n\n請確認 Firebase Console 已「確實」加入此網域。`);
+      setLoginError(err.message || "登入失敗，請檢查帳號密碼");
     }
   };
 
@@ -142,6 +149,58 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-black font-sans selection:bg-black selection:text-white">
+      {/* Login Modal */}
+      <AnimatePresence>
+        {showLogin && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowLogin(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative bg-white w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl"
+            >
+              <h2 className="text-3xl font-bold mb-8">管理員登入</h2>
+              <form onSubmit={handleLogin} className="space-y-6">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Email</label>
+                  <input 
+                    type="email"
+                    required
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none transition-colors"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Password</label>
+                  <input 
+                    type="password"
+                    required
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none transition-colors"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                  />
+                </div>
+                {loginError && <p className="text-red-500 text-sm font-medium">{loginError}</p>}
+                <button 
+                  type="submit"
+                  className="w-full bg-black text-white py-4 rounded-xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all"
+                >
+                  登入
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Navigation */}
       <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-white/70 backdrop-blur-xl border border-gray-200/50 rounded-full px-6 py-3 shadow-sm flex items-center gap-6">
         <div className="flex items-center gap-8">
@@ -171,7 +230,7 @@ export default function App() {
             </button>
           </div>
         ) : (
-          <button onClick={handleLogin} className="text-gray-400 hover:text-black transition-colors">
+          <button onClick={() => setShowLogin(true)} className="text-gray-400 hover:text-black transition-colors">
             <LogIn size={18} />
           </button>
         )}
