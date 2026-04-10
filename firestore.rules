@@ -1,61 +1,27 @@
-// ===============================================================
-// Assumed Data Model
-// ===============================================================
-//
-// Collection: users
-// Document ID: {userId}
-// Fields: uid, email, role
-//
-// Collection: content
-// Document ID: resume
-// Fields: name, title, about, location, email, phone, website
-//
-// Collection: experience
-// Document ID: {expId}
-// Fields: company, role, period, description, achievements
-//
-// Collection: projects
-// Document ID: {projectId}
-// Fields: title, description, tags, link
-//
-// ===============================================================
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isAuthenticated() {
-      return request.auth != null;
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == "chinlu0322@gmail.com";
     }
 
-    function isAdmin() {
-      return isAuthenticated() &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         (request.auth.token.email == "chinlu0322@gmail.com" && request.auth.token.email_verified == true));
+    match /resume_data/main {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /experience/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /projects/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
-      allow write: if isAdmin() || (isAuthenticated() && request.auth.uid == userId && request.resource.data.role == 'user');
-    }
-
-    match /content/resume {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /experience/{expId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /projects/{projectId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    match /test/connection {
-      allow read: if true;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

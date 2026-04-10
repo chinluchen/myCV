@@ -1,18 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Github, 
-  Linkedin, 
   Mail, 
-  ExternalLink, 
   ChevronRight, 
   Download,
   MapPin,
   Briefcase,
-  GraduationCap,
-  Code2,
   User,
-  Phone,
   Globe,
   LogIn,
   LogOut,
@@ -20,23 +14,25 @@ import {
   Save,
   X,
   Plus,
-  Trash2
+  Trash2,
+  Layout
 } from 'lucide-react';
-import { cn, OperationType, handleFirestoreError } from './lib/utils';
+import { cn } from './lib/utils';
 import { useAuth } from './AuthContext';
-import { auth, db, googleProvider, signInWithEmailAndPassword } from './firebase';
-import { signInWithPopup, signOut } from 'firebase/auth';
 import { 
-  doc, 
-  onSnapshot, 
-  setDoc, 
-  collection, 
-  query, 
-  orderBy, 
-  addDoc, 
+  auth, 
+  db, 
+  signInWithEmailAndPassword, 
+  signOut,
+  doc,
+  onSnapshot,
+  updateDoc,
+  collection,
+  addDoc,
   deleteDoc,
-  updateDoc
-} from 'firebase/firestore';
+  query,
+  orderBy
+} from './firebase';
 
 // --- Types ---
 interface ResumeData {
@@ -55,7 +51,6 @@ interface Experience {
   role: string;
   period: string;
   description: string;
-  achievements: string[];
 }
 
 interface Project {
@@ -66,18 +61,15 @@ interface Project {
   link: string;
 }
 
-// --- Default Data ---
 const DEFAULT_RESUME: ResumeData = {
   name: "陳慶儒",
   title: "全端工程師 / 使用者體驗設計師",
   location: "台灣, 台北",
-  email: "your.email@example.com",
+  email: "chinlu0322@gmail.com",
   phone: "+886 912 345 678",
   website: "chinluchen.dev",
-  about: "我是一位熱衷於打造直觀且高效數位產品的開發者。擁有 5 年以上在網頁開發與 UI/UX 設計方面的經驗。"
+  about: "我是一位熱衷於打造直觀且高效數位產品的開發者。"
 };
-
-// --- Components ---
 
 const SectionHeading = ({ children, icon: Icon }: { children: React.ReactNode, icon: any }) => (
   <div className="flex items-center gap-3 mb-8">
@@ -90,24 +82,27 @@ const SectionHeading = ({ children, icon: Icon }: { children: React.ReactNode, i
 
 export default function App() {
   const { user, role, loading: authLoading } = useAuth();
+  const isLoggedIn = !!user && role === 'admin';
+
   const [resume, setResume] = useState<ResumeData>(DEFAULT_RESUME);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<ResumeData>(DEFAULT_RESUME);
   
-  // Login State
   const [showLogin, setShowLogin] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // Fetch Data
+  // 1. 讀取雲端資料 (resume_data 集合)
   useEffect(() => {
-    const unsubResume = onSnapshot(doc(db, 'content', 'resume'), (doc) => {
-      if (doc.exists()) {
-        setResume(doc.data() as ResumeData);
-        setEditData(doc.data() as ResumeData);
+    const unsubResume = onSnapshot(doc(db, 'resume_data', 'main'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data() as ResumeData;
+        setResume(data);
+        setEditData(data);
       }
     });
 
@@ -122,6 +117,7 @@ export default function App() {
     return () => { unsubResume(); unsubExp(); unsubProj(); };
   }, []);
 
+  // 2. 實作 Email/Password 登入系統
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
@@ -131,21 +127,22 @@ export default function App() {
       setEmail('');
       setPassword('');
     } catch (err: any) {
-      console.error(err);
-      setLoginError(err.message || "登入失敗，請檢查帳號密碼");
+      setLoginError("登入失敗，請檢查帳號密碼");
     }
   };
 
+  // 3. 實作後台編輯邏輯 (儲存功能)
   const handleSaveResume = async () => {
     try {
-      await setDoc(doc(db, 'content', 'resume'), editData);
+      await updateDoc(doc(db, 'resume_data', 'main'), { ...editData });
       setIsEditing(false);
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, 'content/resume');
+      console.error("Save failed:", err);
+      alert("儲存失敗，請確認權限");
     }
   };
 
-  if (authLoading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  if (authLoading) return <div className="min-h-screen flex items-center justify-center">載入中...</div>;
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-black font-sans selection:bg-black selection:text-white">
@@ -153,48 +150,14 @@ export default function App() {
       <AnimatePresence>
         {showLogin && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowLogin(false)}
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl"
-            >
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowLogin(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative bg-white w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl">
               <h2 className="text-3xl font-bold mb-8">管理員登入</h2>
               <form onSubmit={handleLogin} className="space-y-6">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Email</label>
-                  <input 
-                    type="email"
-                    required
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none transition-colors"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Password</label>
-                  <input 
-                    type="password"
-                    required
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none transition-colors"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                  />
-                </div>
-                {loginError && <p className="text-red-500 text-sm font-medium">{loginError}</p>}
-                <button 
-                  type="submit"
-                  className="w-full bg-black text-white py-4 rounded-xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all"
-                >
-                  登入
-                </button>
+                <input type="email" placeholder="Email" required className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" value={email} onChange={e => setEmail(e.target.value)} />
+                <input type="password" placeholder="Password" required className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" value={password} onChange={e => setPassword(e.target.value)} />
+                {loginError && <p className="text-red-500 text-sm">{loginError}</p>}
+                <button type="submit" className="w-full bg-black text-white py-4 rounded-xl font-bold">登入</button>
               </form>
             </motion.div>
           </div>
@@ -204,71 +167,42 @@ export default function App() {
       {/* Navigation */}
       <nav className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-white/70 backdrop-blur-xl border border-gray-200/50 rounded-full px-6 py-3 shadow-sm flex items-center gap-6">
         <div className="flex items-center gap-8">
-          {['About', 'Experience', 'Projects', 'Contact'].map((item) => (
-            <button
-              key={item}
-              onClick={() => document.getElementById(item.toLowerCase())?.scrollIntoView({ behavior: 'smooth' })}
-              className="text-sm font-medium text-gray-500 hover:text-black transition-colors"
-            >
-              {item}
-            </button>
+          {['About', 'Experience', 'Projects'].map((item) => (
+            <button key={item} onClick={() => document.getElementById(item.toLowerCase())?.scrollIntoView({ behavior: 'smooth' })} className="text-sm font-medium text-gray-500 hover:text-black">{item}</button>
           ))}
         </div>
         <div className="h-4 w-px bg-gray-200" />
         {user ? (
           <div className="flex items-center gap-3">
-            {role === 'admin' && (
-              <button 
-                onClick={() => setIsEditing(!isEditing)}
-                className={cn("p-2 rounded-full transition-colors", isEditing ? "bg-black text-white" : "hover:bg-gray-100")}
-              >
+            {isLoggedIn && (
+              <button onClick={() => setIsEditing(!isEditing)} className={cn("p-2 rounded-full", isEditing ? "bg-black text-white" : "hover:bg-gray-100")}>
                 {isEditing ? <X size={18} /> : <Edit size={18} />}
               </button>
             )}
-            <button onClick={() => signOut(auth)} className="text-gray-400 hover:text-red-500 transition-colors">
-              <LogOut size={18} />
-            </button>
+            <button onClick={() => signOut(auth)} className="text-gray-400 hover:text-red-500"><LogOut size={18} /></button>
           </div>
         ) : (
-          <button onClick={() => setShowLogin(true)} className="text-gray-400 hover:text-black transition-colors">
-            <LogIn size={18} />
-          </button>
+          <button onClick={() => setShowLogin(true)} className="text-gray-400 hover:text-black"><LogIn size={18} /></button>
         )}
       </nav>
 
       {/* Hero Section */}
       <header className="pt-32 pb-20 px-4">
         <div className="max-w-5xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col md:flex-row gap-12 items-center md:items-start"
-          >
-            <div className="w-48 h-48 bg-gray-200 rounded-[3rem] overflow-hidden rotate-3 hover:rotate-0 transition-transform duration-500 shadow-xl">
+          <div className="flex flex-col md:flex-row gap-12 items-center md:items-start">
+            <div className="w-48 h-48 bg-gray-200 rounded-[3rem] overflow-hidden shadow-xl">
               <img src="https://picsum.photos/seed/profile/400/400" alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             </div>
             <div className="flex-1 text-center md:text-left">
               {isEditing ? (
                 <div className="space-y-4">
-                  <input 
-                    className="text-5xl font-bold w-full bg-transparent border-b border-black outline-none"
-                    value={editData.name}
-                    onChange={e => setEditData({...editData, name: e.target.value})}
-                  />
-                  <input 
-                    className="text-2xl text-gray-500 w-full bg-transparent border-b border-gray-200 outline-none"
-                    value={editData.title}
-                    onChange={e => setEditData({...editData, title: e.target.value})}
-                  />
-                  <div className="flex gap-2 pt-4">
-                    <button onClick={handleSaveResume} className="bg-black text-white px-4 py-2 rounded-lg flex items-center gap-2">
-                      <Save size={16} /> Save Changes
-                    </button>
-                  </div>
+                  <input className="text-5xl font-bold w-full bg-transparent border-b border-black outline-none" value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} />
+                  <input className="text-2xl text-gray-500 w-full bg-transparent border-b border-gray-200 outline-none" value={editData.title} onChange={e => setEditData({...editData, title: e.target.value})} />
+                  <button onClick={handleSaveResume} className="bg-black text-white px-6 py-2 rounded-lg flex items-center gap-2 mt-4"><Save size={16} /> 儲存變更</button>
                 </div>
               ) : (
                 <>
-                  <h1 className="text-6xl md:text-7xl font-bold tracking-tighter leading-none mb-6">{resume.name}</h1>
+                  <h1 className="text-6xl md:text-7xl font-bold tracking-tighter mb-6">{resume.name}</h1>
                   <p className="text-2xl text-gray-500 font-medium mb-8">{resume.title}</p>
                   <div className="flex flex-wrap justify-center md:justify-start gap-6 text-gray-400">
                     <div className="flex items-center gap-2"><MapPin size={18} /> {resume.location}</div>
@@ -278,115 +212,60 @@ export default function App() {
                 </>
               )}
             </div>
-          </motion.div>
+          </div>
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-4 space-y-32 pb-32">
-        {/* About */}
-        <section id="about" className="scroll-mt-32">
+        <section id="about">
           <SectionHeading icon={User}>關於我</SectionHeading>
           {isEditing ? (
-            <textarea 
-              className="w-full h-40 p-4 rounded-2xl border border-gray-200 outline-none"
-              value={editData.about}
-              onChange={e => setEditData({...editData, about: e.target.value})}
-            />
+            <textarea className="w-full h-40 p-4 rounded-2xl border border-gray-200 outline-none" value={editData.about} onChange={e => setEditData({...editData, about: e.target.value})} />
           ) : (
             <p className="text-xl text-gray-600 leading-relaxed max-w-3xl">{resume.about}</p>
           )}
         </section>
 
-        {/* Experience */}
-        <section id="experience" className="scroll-mt-32">
+        <section id="experience">
           <SectionHeading icon={Briefcase}>工作經歷</SectionHeading>
           <div className="space-y-12">
-            {experiences.map((exp, idx) => (
+            {experiences.map((exp) => (
               <div key={exp.id} className="relative pl-8 border-l-2 border-gray-100">
                 <div className="absolute -left-[9px] top-0 w-4 h-4 bg-black rounded-full border-4 border-white" />
                 <div className="flex justify-between">
                   <h3 className="text-2xl font-bold">{exp.role}</h3>
-                  {role === 'admin' && (
-                    <button onClick={() => deleteDoc(doc(db, 'experience', exp.id))} className="text-red-400 hover:text-red-600">
-                      <Trash2 size={18} />
-                    </button>
-                  )}
+                  {isLoggedIn && <button onClick={() => deleteDoc(doc(db, 'experience', exp.id))} className="text-red-400"><Trash2 size={18} /></button>}
                 </div>
                 <p className="text-lg text-gray-500">{exp.company} • {exp.period}</p>
                 <p className="text-gray-600 mt-4">{exp.description}</p>
               </div>
             ))}
-            {role === 'admin' && (
-              <button 
-                onClick={() => addDoc(collection(db, 'experience'), { company: 'New Company', role: 'New Role', period: '2024', description: 'Description', achievements: [] })}
-                className="flex items-center gap-2 text-gray-400 hover:text-black transition-colors font-medium"
-              >
-                <Plus size={18} /> Add Experience
-              </button>
+            {isLoggedIn && (
+              <button onClick={() => addDoc(collection(db, 'experience'), { company: '新公司', role: '新職位', period: '2024', description: '描述' })} className="flex items-center gap-2 text-gray-400 hover:text-black"><Plus size={18} /> 新增經歷</button>
             )}
           </div>
         </section>
 
-        {/* Projects */}
-        <section id="projects" className="scroll-mt-32">
+        <section id="projects">
           <SectionHeading icon={Layout}>精選專案</SectionHeading>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {projects.map((project) => (
-              <div key={project.id} className="group bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all relative">
-                {role === 'admin' && (
-                  <button onClick={() => deleteDoc(doc(db, 'projects', project.id))} className="absolute top-6 right-6 text-red-400">
-                    <Trash2 size={16} />
-                  </button>
-                )}
+              <div key={project.id} className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm relative">
+                {isLoggedIn && <button onClick={() => deleteDoc(doc(db, 'projects', project.id))} className="absolute top-6 right-6 text-red-400"><Trash2 size={16} /></button>}
                 <h3 className="text-2xl font-bold mb-3">{project.title}</h3>
                 <p className="text-gray-500 mb-6">{project.description}</p>
-                <div className="flex gap-2 mb-6">
-                  {project.tags.map(tag => <span key={tag} className="text-[10px] font-bold uppercase tracking-widest text-gray-400 bg-gray-50 px-2 py-1 rounded">{tag}</span>)}
-                </div>
-                <a href={project.link} className="inline-flex items-center gap-2 font-bold text-sm hover:gap-3 transition-all">
-                  查看詳情 <ChevronRight size={16} />
-                </a>
+                <a href={project.link} className="inline-flex items-center gap-2 font-bold text-sm">查看詳情 <ChevronRight size={16} /></a>
               </div>
             ))}
-            {role === 'admin' && (
-              <button 
-                onClick={() => addDoc(collection(db, 'projects'), { title: 'New Project', description: 'Description', tags: ['React'], link: '#' })}
-                className="border-2 border-dashed border-gray-200 rounded-[2.5rem] p-8 flex flex-col items-center justify-center text-gray-400 hover:border-black hover:text-black transition-all"
-              >
+            {isLoggedIn && (
+              <button onClick={() => addDoc(collection(db, 'projects'), { title: '新專案', description: '描述', tags: ['React'], link: '#' })} className="border-2 border-dashed border-gray-200 rounded-[2.5rem] p-8 flex flex-col items-center justify-center text-gray-400 hover:border-black transition-all">
                 <Plus size={32} className="mb-2" />
-                <span className="font-bold">Add New Project</span>
+                <span className="font-bold">新增專案</span>
               </button>
             )}
           </div>
         </section>
-
-        {/* Contact */}
-        <section id="contact" className="scroll-mt-32">
-          <div className="bg-black text-white p-12 md:p-20 rounded-[3rem] text-center">
-            <h2 className="text-4xl md:text-6xl font-bold mb-8 tracking-tight">準備好開始合作了嗎？</h2>
-            <div className="flex flex-wrap justify-center gap-4">
-              <a href={`mailto:${resume.email}`} className="bg-white text-black px-8 py-4 rounded-full font-bold flex items-center gap-2 hover:scale-105 transition-transform">
-                發送郵件 <Mail size={20} />
-              </a>
-              <button className="bg-white/10 backdrop-blur-md text-white px-8 py-4 rounded-full font-bold flex items-center gap-2 hover:bg-white/20 transition-all">
-                下載履歷 <Download size={20} />
-              </button>
-            </div>
-          </div>
-        </section>
       </main>
-
-      <footer className="py-12 border-t border-gray-100 bg-white">
-        <div className="max-w-5xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-8 text-sm text-gray-400">
-          <div>© 2026 {resume.name}. Built with React & Firebase.</div>
-          <div className="flex gap-8">
-            <a href="#" className="hover:text-black transition-colors">Github</a>
-            <a href="#" className="hover:text-black transition-colors">LinkedIn</a>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
-
-import { Layout } from 'lucide-react';
