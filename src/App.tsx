@@ -15,7 +15,8 @@ import {
   X,
   Plus,
   Trash2,
-  Layout
+  Layout,
+  Github
 } from 'lucide-react';
 import { cn } from './lib/utils';
 import { useAuth } from './AuthContext';
@@ -23,6 +24,8 @@ import {
   auth, 
   db, 
   signInWithEmailAndPassword, 
+  signInWithPopup,
+  githubProvider,
   signOut,
   doc,
   onSnapshot,
@@ -131,6 +134,17 @@ export default function App() {
     }
   };
 
+  const handleGithubLogin = async () => {
+    setLoginError('');
+    try {
+      await signInWithPopup(auth, githubProvider);
+      setShowLogin(false);
+    } catch (err: any) {
+      console.error(err);
+      setLoginError("GitHub 登入失敗，請確認 Firebase 設定");
+    }
+  };
+
   // 3. 實作後台編輯邏輯 (儲存功能)
   const handleSaveResume = async () => {
     try {
@@ -159,6 +173,22 @@ export default function App() {
                 {loginError && <p className="text-red-500 text-sm">{loginError}</p>}
                 <button type="submit" className="w-full bg-black text-white py-4 rounded-xl font-bold">登入</button>
               </form>
+              
+              <div className="mt-6">
+                <div className="relative flex items-center justify-center mb-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-100"></div>
+                  </div>
+                  <span className="relative px-4 bg-white text-xs text-gray-400 uppercase font-bold tracking-widest">或使用</span>
+                </div>
+                
+                <button 
+                  onClick={handleGithubLogin}
+                  className="w-full border border-gray-200 py-4 rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-gray-50 transition-colors"
+                >
+                  <Github size={20} /> 使用 GitHub 登入
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, GithubAuthProvider, signInWithPopup } from 'firebase/auth';
 import { getFirestore, doc, onSnapshot, updateDoc, collection, addDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -14,9 +14,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const githubProvider = new GithubAuthProvider();
 
 export { 
   signInWithEmailAndPassword, 
+  signInWithPopup,
   signOut, 
   onAuthStateChanged,
   doc,
