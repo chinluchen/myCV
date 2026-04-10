@@ -53,23 +53,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               ...firebaseUser.providerData.map(p => p.email)
             ].filter(Boolean) as string[];
 
-            const isAdminEmail = emails.some(email => email.toLowerCase() === 'chinlu0322@gmail.com');
-            
             // 檢查 GitHub 帳號名稱 (displayName)
             const isGitHubAdmin = firebaseUser.providerData.some(p => 
               p.providerId === 'github.com' && 
               (p.displayName?.toLowerCase() === 'chinluchen' || firebaseUser.displayName?.toLowerCase() === 'chinluchen')
             );
             
-            // 如果是指定的管理員 Email、GitHub 帳號或 UID，則賦予 admin 權限
-            currentRole = (isAdminEmail || isGitHubAdmin || isAdminUID) ? 'admin' : 'user';
+            // 只有指定的 GitHub 帳號或 UID 才能賦予 admin 權限
+            currentRole = (isGitHubAdmin || isAdminUID) ? 'admin' : 'user';
             
             console.log("[Auth] Check Details:", { 
-              emails, 
               displayName: firebaseUser.displayName, 
               providerData: firebaseUser.providerData.map(p => ({ id: p.providerId, name: p.displayName })),
-              isGitHubAdmin, 
-              isAdminEmail 
+              isGitHubAdmin,
+              isAdminUID
             });
 
             try {
