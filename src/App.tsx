@@ -119,9 +119,12 @@ export default function App() {
   const handleLogin = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("登入失敗，請確認網域授權設定");
+      // 顯示具體的錯誤代碼，幫助診斷問題
+      const errorCode = err.code || "unknown";
+      const errorMessage = err.message || "未知錯誤";
+      alert(`登入失敗！\n錯誤代碼: ${errorCode}\n原因: ${errorMessage}\n\n請確保已在 Firebase Console 將 chinluchen.dev 加入「授權網域」。`);
     }
   };
 
