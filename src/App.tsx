@@ -133,8 +133,12 @@ export default function App() {
           </div>
           <div className="w-full bg-gray-50 p-4 rounded-xl space-y-2">
             <div className="flex justify-between text-[10px] font-mono text-gray-400">
+              <span>NAME:</span>
+              <span className="text-gray-600">{user.displayName || "Not Set"}</span>
+            </div>
+            <div className="flex justify-between text-[10px] font-mono text-gray-400">
               <span>EMAIL:</span>
-              <span className="text-gray-600">{user.email || "Hidden (請在 GitHub 設定公開 Email)"}</span>
+              <span className="text-gray-600">{user.email || "Hidden"}</span>
             </div>
             <div className="flex justify-between text-[10px] font-mono text-gray-400">
               <span>UID:</span>

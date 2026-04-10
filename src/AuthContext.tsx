@@ -48,11 +48,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             const isAdminEmail = emails.some(email => email.toLowerCase() === 'chinlu0322@gmail.com');
             
-            // 如果是指定的管理員 Email，則賦予 admin 權限
-            // 增加對 GitHub Provider 的信任判斷 (如果 Email 匹配)
-            currentRole = isAdminEmail ? 'admin' : 'user';
+            // 檢查 GitHub 帳號名稱 (displayName)
+            const isGitHubAdmin = firebaseUser.providerData.some(p => 
+              p.providerId === 'github.com' && 
+              (p.displayName?.toLowerCase() === 'chinluchen' || firebaseUser.displayName?.toLowerCase() === 'chinluchen')
+            );
             
-            console.log("[Auth] Emails found:", emails, "Is Admin:", isAdminEmail);
+            // 如果是指定的管理員 Email 或 GitHub 帳號，則賦予 admin 權限
+            currentRole = (isAdminEmail || isGitHubAdmin) ? 'admin' : 'user';
+            
+            console.log("[Auth] Check Details:", { 
+              emails, 
+              displayName: firebaseUser.displayName, 
+              providerData: firebaseUser.providerData.map(p => ({ id: p.providerId, name: p.displayName })),
+              isGitHubAdmin, 
+              isAdminEmail 
+            });
 
             try {
               await setDoc(userDocRef, {
