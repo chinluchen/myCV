@@ -19,7 +19,7 @@ import { cn } from './lib/utils';
 
 // --- Resume Data (Easily editable here) ---
 const RESUME_DATA = {
-  name: "您的姓名",
+  name: "陳慶儒",
   title: "全端工程師 / 使用者體驗設計師",
   location: "台灣, 台北",
   email: "your.email@example.com",
