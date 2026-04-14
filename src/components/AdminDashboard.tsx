@@ -91,11 +91,27 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
     }
   };
 
-  const handleUpdateProject = async (id: string, data: Partial<Project>) => {
+  const handleSaveExperience = async (id: string) => {
+    const exp = experiences.find(e => e.id === id);
+    if (!exp) return;
     try {
-      await setDoc(doc(db, 'projects', id), data, { merge: true });
+      const { id: _, ...data } = exp;
+      await setDoc(doc(db, 'experience', id), data, { merge: true });
+      showToast("經歷已儲存");
     } catch (err) {
-      console.error("Update project error:", err);
+      showToast("儲存失敗", "error");
+    }
+  };
+
+  const handleSaveProject = async (id: string) => {
+    const proj = projects.find(p => p.id === id);
+    if (!proj) return;
+    try {
+      const { id: _, ...data } = proj;
+      await setDoc(doc(db, 'projects', id), data, { merge: true });
+      showToast("專案已儲存");
+    } catch (err) {
+      showToast("儲存失敗", "error");
     }
   };
 
@@ -287,40 +303,52 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
 
               <div className="space-y-1">
                 {experiences.map(exp => (
-                  <div key={exp.id} className="group flex gap-8 p-8 border border-[#141414]/10 hover:border-[#141414] transition-all bg-white/30">
-                    <div className="w-32 pt-1 text-[10px] font-bold text-[#141414]/40 tracking-tighter">
-                      <input 
-                        className="bg-transparent outline-none w-full"
-                        value={exp.period}
-                        onChange={e => setDoc(doc(db, 'experience', exp.id), { period: e.target.value }, { merge: true })}
-                      />
-                    </div>
-                    <div className="flex-1 space-y-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1 space-y-1">
-                          <input 
-                            className="text-xl font-bold bg-transparent outline-none w-full"
-                            value={exp.role}
-                            onChange={e => setDoc(doc(db, 'experience', exp.id), { role: e.target.value }, { merge: true })}
-                          />
-                          <input 
-                            className="text-xs italic font-serif text-[#141414]/60 bg-transparent outline-none w-full"
-                            value={exp.company}
-                            onChange={e => setDoc(doc(db, 'experience', exp.id), { company: e.target.value }, { merge: true })}
-                          />
-                        </div>
-                        <button 
-                          onClick={() => deleteDoc(doc(db, 'experience', exp.id))}
-                          className="opacity-0 group-hover:opacity-100 p-2 text-red-600 transition-all"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                  <div key={exp.id} className="group flex flex-col gap-4 p-8 border border-[#141414]/10 hover:border-[#141414] transition-all bg-white/30">
+                    <div className="flex gap-8">
+                      <div className="w-32 pt-1 text-[10px] font-bold text-[#141414]/40 tracking-tighter">
+                        <input 
+                          className="bg-transparent outline-none w-full border-b border-transparent focus:border-[#141414]/20"
+                          value={exp.period}
+                          onChange={e => setExperiences(prev => prev.map(item => item.id === exp.id ? { ...item, period: e.target.value } : item))}
+                        />
                       </div>
-                      <textarea 
-                        className="w-full bg-transparent text-sm leading-relaxed outline-none border-l border-[#141414]/10 pl-4 focus:border-[#141414] transition-all resize-none h-24"
-                        value={exp.description}
-                        onChange={e => setDoc(doc(db, 'experience', exp.id), { description: e.target.value }, { merge: true })}
-                      />
+                      <div className="flex-1 space-y-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1 space-y-1">
+                            <input 
+                              className="text-xl font-bold bg-transparent outline-none w-full border-b border-transparent focus:border-[#141414]/20"
+                              value={exp.role}
+                              onChange={e => setExperiences(prev => prev.map(item => item.id === exp.id ? { ...item, role: e.target.value } : item))}
+                            />
+                            <input 
+                              className="text-xs italic font-serif text-[#141414]/60 bg-transparent outline-none w-full border-b border-transparent focus:border-[#141414]/20"
+                              value={exp.company}
+                              onChange={e => setExperiences(prev => prev.map(item => item.id === exp.id ? { ...item, company: e.target.value } : item))}
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => handleSaveExperience(exp.id)}
+                              className="p-2 text-[#141414] hover:bg-[#141414] hover:text-[#E4E3E0] transition-all rounded-lg"
+                              title="Save Changes"
+                            >
+                              <Save size={14} />
+                            </button>
+                            <button 
+                              onClick={() => deleteDoc(doc(db, 'experience', exp.id))}
+                              className="p-2 text-red-600 hover:bg-red-50 transition-all rounded-lg"
+                              title="Delete Entry"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                        <textarea 
+                          className="w-full bg-transparent text-sm leading-relaxed outline-none border-l border-[#141414]/10 pl-4 focus:border-[#141414] transition-all resize-none h-24"
+                          value={exp.description}
+                          onChange={e => setExperiences(prev => prev.map(item => item.id === exp.id ? { ...item, description: e.target.value } : item))}
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -348,28 +376,38 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
                   <div key={project.id} className="group p-8 border border-[#141414]/10 hover:border-[#141414] transition-all bg-white/30 space-y-6">
                     <div className="flex justify-between items-start">
                       <input 
-                        className="text-2xl font-bold bg-transparent outline-none w-full"
+                        className="text-2xl font-bold bg-transparent outline-none w-full border-b border-transparent focus:border-[#141414]/20"
                         value={project.title}
-                        onChange={e => handleUpdateProject(project.id, { title: e.target.value })}
+                        onChange={e => setProjects(prev => prev.map(item => item.id === project.id ? { ...item, title: e.target.value } : item))}
                       />
-                      <button 
-                        onClick={() => deleteDoc(doc(db, 'projects', project.id))}
-                        className="opacity-0 group-hover:opacity-100 p-2 text-red-600 transition-all"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => handleSaveProject(project.id)}
+                          className="p-2 text-[#141414] hover:bg-[#141414] hover:text-[#E4E3E0] transition-all rounded-lg"
+                          title="Save Project"
+                        >
+                          <Save size={16} />
+                        </button>
+                        <button 
+                          onClick={() => deleteDoc(doc(db, 'projects', project.id))}
+                          className="p-2 text-red-600 hover:bg-red-50 transition-all rounded-lg"
+                          title="Delete Project"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
                     <textarea 
                       className="w-full bg-transparent text-sm leading-relaxed outline-none border-l border-[#141414]/10 pl-4 focus:border-[#141414] transition-all resize-none h-24"
                       value={project.description}
-                      onChange={e => handleUpdateProject(project.id, { description: e.target.value })}
+                      onChange={e => setProjects(prev => prev.map(item => item.id === project.id ? { ...item, description: e.target.value } : item))}
                     />
                     <div className="flex items-center gap-4 text-[10px] font-bold text-[#141414]/40 uppercase tracking-widest">
                       <span>URL_LINK:</span>
                       <input 
-                        className="flex-1 bg-transparent outline-none text-[#141414] border-b border-transparent focus:border-[#141414]"
+                        className="flex-1 bg-transparent outline-none text-[#141414] border-b border-transparent focus:border-[#141414]/20"
                         value={project.link}
-                        onChange={e => handleUpdateProject(project.id, { link: e.target.value })}
+                        onChange={e => setProjects(prev => prev.map(item => item.id === project.id ? { ...item, link: e.target.value } : item))}
                       />
                     </div>
                   </div>
