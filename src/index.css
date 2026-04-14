@@ -4,3 +4,22 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
+
+@layer components {
+  .toast-enter {
+    animation: toast-in 0.3s ease-out forwards;
+  }
+  .toast-exit {
+    animation: toast-out 0.3s ease-in forwards;
+  }
+}
+
+@keyframes toast-in {
+  from { transform: translateY(100%) translateX(-50%); opacity: 0; }
+  to { transform: translateY(0) translateX(-50%); opacity: 1; }
+}
+
+@keyframes toast-out {
+  from { transform: translateY(0) translateX(-50%); opacity: 1; }
+  to { transform: translateY(100%) translateX(-50%); opacity: 0; }
+}

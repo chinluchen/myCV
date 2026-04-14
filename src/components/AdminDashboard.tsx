@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Save, 
   LogOut, 
@@ -8,7 +9,9 @@ import {
   Plus, 
   Trash2,
   ChevronLeft,
-  Globe
+  Globe,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { db, doc, onSnapshot, setDoc, collection, addDoc, deleteDoc, query, orderBy } from '../firebase';
@@ -47,6 +50,14 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'about' | 'experience' | 'projects'>('about');
+  
+  // Toast state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   useEffect(() => {
     const unsubResume = onSnapshot(doc(db, 'resume_data', 'main'), (docSnap) => {
@@ -74,28 +85,46 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
     if (!resume) return;
     try {
       await setDoc(doc(db, 'resume_data', 'main'), resume, { merge: true });
-      alert("「關於我」已更新！");
+      showToast("「關於我」已更新！");
     } catch (err) {
-      alert("儲存失敗");
+      showToast("儲存失敗", "error");
+    }
+  };
+
+  const handleUpdateProject = async (id: string, data: Partial<Project>) => {
+    try {
+      await setDoc(doc(db, 'projects', id), data, { merge: true });
+    } catch (err) {
+      console.error("Update project error:", err);
     }
   };
 
   const handleAddExperience = async () => {
-    await addDoc(collection(db, 'experience'), {
-      company: '新公司',
-      role: '新職位',
-      period: '2024 - Present',
-      description: '請輸入工作描述...'
-    });
+    try {
+      await addDoc(collection(db, 'experience'), {
+        company: '新公司',
+        role: '新職位',
+        period: '2024 - Present',
+        description: '請輸入工作描述...'
+      });
+      showToast("已新增經歷");
+    } catch (err) {
+      showToast("新增失敗", "error");
+    }
   };
 
   const handleAddProject = async () => {
-    await addDoc(collection(db, 'projects'), {
-      title: '新專案',
-      description: '專案描述...',
-      tags: ['React', 'Tailwind'],
-      link: '#'
-    });
+    try {
+      await addDoc(collection(db, 'projects'), {
+        title: '新專案',
+        description: '專案描述...',
+        tags: ['React', 'Tailwind'],
+        link: '#'
+      });
+      showToast("已初始化新專案");
+    } catch (err) {
+      showToast("新增失敗", "error");
+    }
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">載入後台資料中...</div>;
@@ -321,7 +350,7 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
                       <input 
                         className="text-2xl font-bold bg-transparent outline-none w-full"
                         value={project.title}
-                        onChange={e => setDoc(doc(db, 'projects', project.id), { title: e.target.value }, { merge: true })}
+                        onChange={e => handleUpdateProject(project.id, { title: e.target.value })}
                       />
                       <button 
                         onClick={() => deleteDoc(doc(db, 'projects', project.id))}
@@ -333,14 +362,14 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
                     <textarea 
                       className="w-full bg-transparent text-sm leading-relaxed outline-none border-l border-[#141414]/10 pl-4 focus:border-[#141414] transition-all resize-none h-24"
                       value={project.description}
-                      onChange={e => setDoc(doc(db, 'projects', project.id), { description: e.target.value }, { merge: true })}
+                      onChange={e => handleUpdateProject(project.id, { description: e.target.value })}
                     />
                     <div className="flex items-center gap-4 text-[10px] font-bold text-[#141414]/40 uppercase tracking-widest">
                       <span>URL_LINK:</span>
                       <input 
                         className="flex-1 bg-transparent outline-none text-[#141414] border-b border-transparent focus:border-[#141414]"
                         value={project.link}
-                        onChange={e => setDoc(doc(db, 'projects', project.id), { link: e.target.value }, { merge: true })}
+                        onChange={e => handleUpdateProject(project.id, { link: e.target.value })}
                       />
                     </div>
                   </div>
@@ -350,6 +379,24 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
           )}
         </div>
       </main>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: 50, x: '-50%' }}
+            className={cn(
+              "fixed bottom-8 left-1/2 z-[200] px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 text-xs font-bold tracking-widest uppercase",
+              toast.type === 'success' ? "bg-[#141414] text-[#E4E3E0]" : "bg-red-600 text-white"
+            )}
+          >
+            {toast.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
