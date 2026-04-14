@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, db } from './firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User, signInAnonymously } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 interface AuthContextType {
-  user: { uid: string; displayName: string; email: string } | null;
+  user: { uid: string; displayName: string; email: string; isManual?: boolean } | null;
   role: 'admin' | 'user' | null;
   loading: boolean;
   login: (username: string, pass: string) => Promise<void>;
@@ -68,10 +68,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (username: string, pass: string) => {
     if (username === 'chinluchen' && pass === '0322') {
+      // 嘗試匿名登入以獲取 Firebase Session
+      try {
+        await signInAnonymously(auth);
+      } catch (e) {
+        console.error("Anonymous login failed", e);
+      }
+
       const adminUser = { 
         uid: 'manual-admin-id', 
         displayName: 'chinluchen', 
-        email: 'admin@local.host' 
+        email: 'admin@local.host',
+        isManual: true
       };
       setUser(adminUser);
       setRole('admin');

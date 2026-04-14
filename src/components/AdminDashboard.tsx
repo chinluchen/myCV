@@ -14,7 +14,20 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { db, doc, onSnapshot, setDoc, collection, addDoc, deleteDoc, query, orderBy } from '../firebase';
+import { 
+  db, 
+  doc, 
+  onSnapshot, 
+  setDoc, 
+  collection, 
+  addDoc, 
+  deleteDoc, 
+  query, 
+  orderBy,
+  getDocFromServer,
+  handleFirestoreError,
+  OperationType
+} from '../firebase';
 import { useAuth } from '../AuthContext';
 
 interface ResumeData {
@@ -44,7 +57,7 @@ interface Project {
 }
 
 export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [resume, setResume] = useState<ResumeData | null>(null);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -83,23 +96,29 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
 
   const handleSaveAbout = async () => {
     if (!resume) return;
+    const path = 'resume_data/main';
     try {
-      await setDoc(doc(db, 'resume_data', 'main'), resume, { merge: true });
+      await setDoc(doc(db, 'resume_data', 'main'), resume);
+      // 強制從伺服器讀取一次以驗證權限與寫入
+      await getDocFromServer(doc(db, 'resume_data', 'main'));
       showToast("「關於我」已更新！");
     } catch (err) {
-      showToast("儲存失敗", "error");
+      handleFirestoreError(err, OperationType.WRITE, path);
+      showToast("儲存失敗：權限不足或網路錯誤", "error");
     }
   };
 
   const handleSaveExperience = async (id: string) => {
     const exp = experiences.find(e => e.id === id);
     if (!exp) return;
+    const path = `experience/${id}`;
     try {
       const { id: _, ...data } = exp;
       await setDoc(doc(db, 'experience', id), data);
+      await getDocFromServer(doc(db, 'experience', id));
       showToast("經歷已儲存");
     } catch (err) {
-      console.error("Save experience error:", err);
+      handleFirestoreError(err, OperationType.WRITE, path);
       showToast("儲存失敗", "error");
     }
   };
@@ -107,12 +126,14 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
   const handleSaveProject = async (id: string) => {
     const proj = projects.find(p => p.id === id);
     if (!proj) return;
+    const path = `projects/${id}`;
     try {
       const { id: _, ...data } = proj;
       await setDoc(doc(db, 'projects', id), data);
+      await getDocFromServer(doc(db, 'projects', id));
       showToast("專案已儲存");
     } catch (err) {
-      console.error("Save project error:", err);
+      handleFirestoreError(err, OperationType.WRITE, path);
       showToast("儲存失敗", "error");
     }
   };
@@ -182,9 +203,18 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
           ))}
         </nav>
         <div className="p-6 border-t border-[#141414] space-y-3">
+          {user?.isManual && (
+            <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg mb-4">
+              <p className="text-[10px] text-amber-700 font-bold leading-tight">
+                ⚠️ 注意：手動登入模式僅供預覽，無法儲存變更。請使用 GitHub 登入以獲得完整編輯權限。
+              </p>
+            </div>
+          )}
           <div className="text-[10px] text-[#141414]/40 mb-4">
             SYSTEM_STATUS: <span className="text-green-600">ONLINE</span><br />
-            AUTH_LEVEL: <span className="text-red-600">ADMIN_ROOT</span>
+            AUTH_LEVEL: <span className={user?.isManual ? "text-amber-600" : "text-red-600"}>
+              {user?.isManual ? "PREVIEW_ONLY" : "ADMIN_ROOT"}
+            </span>
           </div>
           <button 
             onClick={() => onBack?.()}
