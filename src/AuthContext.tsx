@@ -25,13 +25,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 1. 檢查手動登入的 LocalStorage
     const savedUser = localStorage.getItem('auth_user');
     if (savedUser) {
       const parsed = JSON.parse(savedUser);
       setUser(parsed);
       setRole('admin');
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    // 2. 監聽 Firebase 驗證狀態 (GitHub 登入)
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const adminUIDs = ['KqkRBETa9iXigqtgn0EILGXcl1V2'];
+        const isAdminUID = adminUIDs.includes(firebaseUser.uid);
+        const isGitHubAdmin = firebaseUser.providerData.some(p => 
+          p.providerId === 'github.com' && 
+          (p.displayName?.toLowerCase() === 'chinluchen' || firebaseUser.displayName?.toLowerCase() === 'chinluchen')
+        );
+
+        const isAdmin = isAdminUID || isGitHubAdmin;
+        
+        setUser({
+          uid: firebaseUser.uid,
+          displayName: firebaseUser.displayName || 'User',
+          email: firebaseUser.email || ''
+        });
+        setRole(isAdmin ? 'admin' : 'user');
+      } else {
+        // 只有在沒有手動登入的情況下才清除狀態
+        if (!localStorage.getItem('auth_user')) {
+          setUser(null);
+          setRole(null);
+        }
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const login = async (username: string, pass: string) => {
@@ -49,7 +81,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await auth.signOut();
     setUser(null);
     setRole(null);
     localStorage.removeItem('auth_user');
