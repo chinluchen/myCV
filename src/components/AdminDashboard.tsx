@@ -57,7 +57,7 @@ interface Project {
 }
 
 export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
-  const { logout, user } = useAuth();
+  const { logout } = useAuth();
   const [resume, setResume] = useState<ResumeData | null>(null);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -203,18 +203,9 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
           ))}
         </nav>
         <div className="p-6 border-t border-[#141414] space-y-3">
-          {user?.isManual && (
-            <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg mb-4">
-              <p className="text-[10px] text-amber-700 font-bold leading-tight">
-                ⚠️ 注意：手動登入模式僅供預覽，無法儲存變更。請使用 GitHub 登入以獲得完整編輯權限。
-              </p>
-            </div>
-          )}
           <div className="text-[10px] text-[#141414]/40 mb-4">
             SYSTEM_STATUS: <span className="text-green-600">ONLINE</span><br />
-            AUTH_LEVEL: <span className={user?.isManual ? "text-amber-600" : "text-red-600"}>
-              {user?.isManual ? "PREVIEW_ONLY" : "ADMIN_ROOT"}
-            </span>
+            AUTH_LEVEL: <span className="text-red-600">ADMIN_ROOT</span>
           </div>
           <button 
             onClick={() => onBack?.()}

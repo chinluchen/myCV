@@ -20,28 +20,12 @@ import { ResumeView } from './components/ResumeView';
 import { AdminDashboard } from './components/AdminDashboard';
 
 export default function App() {
-  const { user, role, loading: authLoading, login, logout } = useAuth();
+  const { user, role, loading: authLoading, logout } = useAuth();
   const isLoggedIn = !!user && role === 'admin';
   const [view, setView] = useState<'resume' | 'admin'>('resume');
   
   const [showLogin, setShowLogin] = useState(false);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError('');
-    try {
-      await login(username, password);
-      setShowLogin(false);
-      setUsername('');
-      setPassword('');
-      setView('admin'); // 登入後自動跳轉到後台
-    } catch (err: any) {
-      setLoginError(err.message || "登入失敗");
-    }
-  };
 
   const handleGithubLogin = async () => {
     setLoginError('');
@@ -68,29 +52,25 @@ export default function App() {
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowLogin(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative bg-white w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl">
-              <h2 className="text-3xl font-bold mb-8">管理員登入</h2>
-              <form onSubmit={handleLogin} className="space-y-6">
-                <input type="text" placeholder="帳號" required className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" value={username} onChange={e => setUsername(e.target.value)} />
-                <input type="password" placeholder="密碼" required className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" value={password} onChange={e => setPassword(e.target.value)} />
-                {loginError && <p className="text-red-500 text-sm">{loginError}</p>}
-                <button type="submit" className="w-full bg-black text-white py-4 rounded-xl font-bold">登入</button>
-              </form>
-
-              <div className="mt-6">
-                <div className="relative flex items-center justify-center mb-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-100"></div>
-                  </div>
-                  <span className="relative px-4 bg-white text-xs text-gray-400 uppercase font-bold tracking-widest">或使用</span>
-                </div>
-                
-                <button 
-                  onClick={handleGithubLogin}
-                  className="w-full border border-gray-200 py-4 rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-gray-50 transition-colors"
-                >
-                  <Github size={20} /> 使用 GitHub 登入
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="text-3xl font-bold">管理員登入</h2>
+                <button onClick={() => setShowLogin(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                  <X size={24} />
                 </button>
               </div>
+              
+              <p className="text-gray-500 mb-8 text-sm leading-relaxed">
+                請使用您的 GitHub 帳號進行驗證，系統將自動識別您的管理員權限。
+              </p>
+
+              {loginError && <p className="text-red-500 text-sm mb-6">{loginError}</p>}
+              
+              <button 
+                onClick={handleGithubLogin}
+                className="w-full bg-black text-white py-5 rounded-2xl font-bold flex items-center justify-center gap-4 hover:opacity-90 transition-all shadow-xl shadow-black/10"
+              >
+                <Github size={24} /> 使用 GitHub 登入
+              </button>
             </motion.div>
           </div>
         )}
