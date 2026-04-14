@@ -60,24 +60,49 @@ export const ResumeView: React.FC = () => {
   const [resume, setResume] = useState<ResumeData>(DEFAULT_RESUME);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('正在從 Firestore 讀取資料...');
+    
     const unsubResume = onSnapshot(doc(db, 'resume_data', 'main'), (docSnap) => {
       if (docSnap.exists()) {
+        console.log('已從 Firestore 讀取 resume_data');
         setResume(docSnap.data() as ResumeData);
       }
+      setLoading(false);
+    }, (err) => {
+      console.error('讀取 resume_data 失敗:', err);
+      setLoading(false);
     });
 
     const unsubExp = onSnapshot(query(collection(db, 'experience'), orderBy('period', 'desc')), (snap) => {
+      console.log('已從 Firestore 讀取 experience');
       setExperiences(snap.docs.map(d => ({ id: d.id, ...d.data() } as Experience)));
+    }, (err) => {
+      console.error('讀取 experience 失敗:', err);
     });
 
     const unsubProj = onSnapshot(collection(db, 'projects'), (snap) => {
+      console.log('已從 Firestore 讀取 projects');
       setProjects(snap.docs.map(d => ({ id: d.id, ...d.data() } as Project)));
+    }, (err) => {
+      console.error('讀取 projects 失敗:', err);
     });
 
     return () => { unsubResume(); unsubExp(); unsubProj(); };
   }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-gray-200 border-t-black rounded-full animate-spin" />
+          <p className="text-sm font-bold tracking-widest uppercase text-gray-400">Loading_Data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-black font-sans selection:bg-black selection:text-white pb-32">

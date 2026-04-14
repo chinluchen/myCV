@@ -99,10 +99,12 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
     const path = 'resume_data/main';
     try {
       await setDoc(doc(db, 'resume_data', 'main'), resume);
+      console.log('資料已成功存入資料庫 (resume_data/main)');
       // 強制從伺服器讀取一次以驗證權限與寫入
       await getDocFromServer(doc(db, 'resume_data', 'main'));
       showToast("「關於我」已更新！");
     } catch (err) {
+      console.error('儲存失敗:', err);
       handleFirestoreError(err, OperationType.WRITE, path);
       showToast("儲存失敗：權限不足或網路錯誤", "error");
     }
@@ -115,9 +117,11 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
     try {
       const { id: _, ...data } = exp;
       await setDoc(doc(db, 'experience', id), data);
+      console.log(`資料已成功存入資料庫 (experience/${id})`);
       await getDocFromServer(doc(db, 'experience', id));
       showToast("經歷已儲存");
     } catch (err) {
+      console.error('儲存失敗:', err);
       handleFirestoreError(err, OperationType.WRITE, path);
       showToast("儲存失敗", "error");
     }
@@ -130,9 +134,11 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
     try {
       const { id: _, ...data } = proj;
       await setDoc(doc(db, 'projects', id), data);
+      console.log(`資料已成功存入資料庫 (projects/${id})`);
       await getDocFromServer(doc(db, 'projects', id));
       showToast("專案已儲存");
     } catch (err) {
+      console.error('儲存失敗:', err);
       handleFirestoreError(err, OperationType.WRITE, path);
       showToast("儲存失敗", "error");
     }
