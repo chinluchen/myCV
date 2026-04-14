@@ -25,8 +25,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. 檢查手動登入的 LocalStorage
-    const savedUser = localStorage.getItem('auth_user');
+    // 1. 檢查手動登入的 SessionStorage (僅限當前分頁)
+    const savedUser = sessionStorage.getItem('auth_user');
     if (savedUser) {
       const parsed = JSON.parse(savedUser);
       setUser(parsed);
@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRole(isAdmin ? 'admin' : 'user');
       } else {
         // 只有在沒有手動登入的情況下才清除狀態
-        if (!localStorage.getItem('auth_user')) {
+        if (!sessionStorage.getItem('auth_user')) {
           setUser(null);
           setRole(null);
         }
@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       setUser(adminUser);
       setRole('admin');
-      localStorage.setItem('auth_user', JSON.stringify(adminUser));
+      sessionStorage.setItem('auth_user', JSON.stringify(adminUser));
     } else {
       throw new Error('帳號或密碼錯誤');
     }
@@ -85,7 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await auth.signOut();
     setUser(null);
     setRole(null);
-    localStorage.removeItem('auth_user');
+    sessionStorage.removeItem('auth_user');
   };
 
   return (

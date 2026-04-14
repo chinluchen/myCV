@@ -5,13 +5,16 @@ import {
   LogOut,
   Github,
   X,
-  User
+  User,
+  Briefcase
 } from 'lucide-react';
 import { useAuth } from './AuthContext';
 import { 
   auth, 
   signInWithPopup,
-  githubProvider
+  githubProvider,
+  setPersistence,
+  browserSessionPersistence
 } from './firebase';
 import { ResumeView } from './components/ResumeView';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -19,6 +22,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 export default function App() {
   const { user, role, loading: authLoading, login, logout } = useAuth();
   const isLoggedIn = !!user && role === 'admin';
+  const [view, setView] = useState<'resume' | 'admin'>('resume');
   
   const [showLogin, setShowLogin] = useState(false);
   const [username, setUsername] = useState('');
@@ -33,6 +37,7 @@ export default function App() {
       setShowLogin(false);
       setUsername('');
       setPassword('');
+      setView('admin'); // 登入後自動跳轉到後台
     } catch (err: any) {
       setLoginError(err.message || "登入失敗");
     }
@@ -41,16 +46,18 @@ export default function App() {
   const handleGithubLogin = async () => {
     setLoginError('');
     try {
+      await setPersistence(auth, browserSessionPersistence);
       await signInWithPopup(auth, githubProvider);
       setShowLogin(false);
+      setView('admin'); // 登入後自動跳轉到後台
     } catch (err: any) {
       console.error(err);
       setLoginError("GitHub 登入失敗，請確認 Firebase 設定");
     }
   };
 
-  if (isLoggedIn) {
-    return <AdminDashboard />;
+  if (isLoggedIn && view === 'admin') {
+    return <AdminDashboard onBack={() => setView('resume')} />;
   }
 
   return (
@@ -102,6 +109,15 @@ export default function App() {
         ) : user ? (
           <div className="flex items-center gap-3">
             <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">{role || 'User'}</span>
+            {role === 'admin' && (
+              <button 
+                onClick={() => setView('admin')}
+                className="text-gray-400 hover:text-black flex items-center gap-2 border-r border-gray-200 pr-3 mr-1"
+              >
+                <Briefcase size={16} />
+                <span className="text-xs font-bold uppercase tracking-wider">Admin</span>
+              </button>
+            )}
             <button onClick={() => logout()} className="text-gray-400 hover:text-red-500 flex items-center gap-2">
               <LogOut size={18} />
               <span className="text-xs font-bold uppercase tracking-wider">Logout</span>

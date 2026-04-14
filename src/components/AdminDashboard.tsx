@@ -40,7 +40,7 @@ interface Project {
   link: string;
 }
 
-export const AdminDashboard: React.FC = () => {
+export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const { logout } = useAuth();
   const [resume, setResume] = useState<ResumeData | null>(null);
   const [experiences, setExperiences] = useState<Experience[]>([]);
@@ -140,10 +140,16 @@ export const AdminDashboard: React.FC = () => {
             AUTH_LEVEL: <span className="text-red-600">ADMIN_ROOT</span>
           </div>
           <button 
+            onClick={() => onBack?.()}
+            className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-bold border border-[#141414] hover:bg-[#141414] hover:text-[#E4E3E0] transition-all uppercase tracking-widest"
+          >
+            <ChevronLeft size={14} /> Back to Site
+          </button>
+          <button 
             onClick={() => window.open('/', '_blank')}
             className="w-full flex items-center gap-3 px-4 py-3 text-[10px] font-bold border border-[#141414] hover:bg-[#141414] hover:text-[#E4E3E0] transition-all uppercase tracking-widest"
           >
-            <Globe size={14} /> View Live Site
+            <Globe size={14} /> View Live Site (New Tab)
           </button>
           <button 
             onClick={() => logout()}

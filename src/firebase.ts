@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, GithubAuthProvider, signInWithPopup } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, GithubAuthProvider, signInWithPopup, setPersistence, browserSessionPersistence } from 'firebase/auth';
 import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, addDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -21,6 +21,8 @@ export {
   signInWithPopup,
   signOut, 
   onAuthStateChanged,
+  setPersistence,
+  browserSessionPersistence,
   doc,
   onSnapshot,
   setDoc,
