@@ -96,9 +96,10 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
     if (!exp) return;
     try {
       const { id: _, ...data } = exp;
-      await setDoc(doc(db, 'experience', id), data, { merge: true });
+      await setDoc(doc(db, 'experience', id), data);
       showToast("經歷已儲存");
     } catch (err) {
+      console.error("Save experience error:", err);
       showToast("儲存失敗", "error");
     }
   };
@@ -108,9 +109,10 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
     if (!proj) return;
     try {
       const { id: _, ...data } = proj;
-      await setDoc(doc(db, 'projects', id), data, { merge: true });
+      await setDoc(doc(db, 'projects', id), data);
       showToast("專案已儲存");
     } catch (err) {
+      console.error("Save project error:", err);
       showToast("儲存失敗", "error");
     }
   };
