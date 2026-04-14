@@ -81,37 +81,52 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
 
   useEffect(() => {
     console.log('Requesting Firestore (cv_content/default_resume)...');
+    console.log('Firebase DB Instance:', db);
     
-    // Set a timeout for loading
+    let hasReceivedData = false;
+
+    // 3-second timeout for server response
     const timeoutId = setTimeout(() => {
-      if (loading) {
-        console.error('Error details: Connection timeout (5s)');
-        setError('目前無法連線至資料庫，請檢查網路或稍後再試');
+      if (!hasReceivedData) {
+        console.warn('Firebase server response timeout (3s). Using local cache if available.');
         setLoading(false);
       }
-    }, 5000);
+    }, 3000);
 
-    const unsub = onSnapshot(doc(db, 'cv_content', 'default_resume'), (docSnap) => {
+    const unsub = onSnapshot(doc(db, 'cv_content', 'default_resume'), { includeMetadataChanges: true }, (docSnap) => {
+      hasReceivedData = true;
       clearTimeout(timeoutId);
+      
+      console.log('Snapshot received. Exists:', docSnap.exists(), 'From Cache:', docSnap.metadata.fromCache);
+      
       if (docSnap.exists()) {
         console.log('Data received from Firestore');
         const data = docSnap.data() as FullResumeData;
         setResume(data.resume || null);
         setExperiences(data.experiences || []);
         setProjects(data.projects || []);
+        setError(null);
       } else {
         console.log('No data found at cv_content/default_resume, initializing...');
+        setError('尚未建立資料，請開始編輯並儲存。');
       }
       setLoading(false);
-      setError(null);
     }, (err) => {
       clearTimeout(timeoutId);
-      console.error('Error details:', err);
-      setError('讀取資料失敗，請確認權限');
+      console.error('Firestore Snapshot Error details:', err);
+      if (err.code === 'permission-denied') {
+        setError('存取被拒絕：您沒有管理員權限。');
+      } else {
+        setError(`讀取資料失敗: ${err.message}`);
+      }
       setLoading(false);
     });
 
-    return () => { unsub(); clearTimeout(timeoutId); };
+    return () => {
+      console.log('Unsubscribing from Admin listener...');
+      unsub();
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   const saveAllData = async (updatedResume?: ResumeData, updatedExp?: Experience[], updatedProj?: Project[]) => {

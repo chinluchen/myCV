@@ -71,36 +71,54 @@ export const ResumeView: React.FC = () => {
 
   useEffect(() => {
     console.log('Requesting Firestore (cv_content/default_resume)...');
+    console.log('Firebase DB Instance:', db);
     
-    const timeoutId = setTimeout(() => {
-      if (loading) {
-        console.error('Error details: Connection timeout (5s)');
-        setError('目前無法連線至資料庫，請檢查網路或稍後再試');
-        setLoading(false);
-      }
-    }, 5000);
+    let hasReceivedData = false;
 
-    const unsub = onSnapshot(doc(db, 'cv_content', 'default_resume'), (docSnap) => {
+    // 3-second timeout for server response
+    const timeoutId = setTimeout(() => {
+      if (!hasReceivedData) {
+        console.warn('Firebase server response timeout (3s). Using local/default data.');
+        setLoading(false);
+        // We don't set an error here because we want to show whatever we have (cache or defaults)
+      }
+    }, 3000);
+
+    const unsub = onSnapshot(doc(db, 'cv_content', 'default_resume'), { includeMetadataChanges: true }, (docSnap) => {
+      hasReceivedData = true;
       clearTimeout(timeoutId);
+      
+      console.log('Snapshot received. Exists:', docSnap.exists(), 'From Cache:', docSnap.metadata.fromCache);
+      
       if (docSnap.exists()) {
-        console.log('Data received from Firestore');
         const data = docSnap.data() as FullResumeData;
         if (data.resume) setResume(data.resume);
         if (data.experiences) setExperiences(data.experiences);
         if (data.projects) setProjects(data.projects);
+        setError(null);
       } else {
         console.log('No data found at cv_content/default_resume');
+        setError('尚未建立資料，請前往後台進行設定。');
       }
+      
+      // Stop loading if we got server data OR if we have cached data
       setLoading(false);
-      setError(null);
     }, (err) => {
       clearTimeout(timeoutId);
-      console.error('Error details:', err);
-      setError('讀取資料失敗，請稍後再試');
+      console.error('Firestore Snapshot Error details:', err);
+      if (err.code === 'permission-denied') {
+        setError('存取被拒絕：您沒有權限讀取此資料。');
+      } else {
+        setError(`讀取資料失敗: ${err.message}`);
+      }
       setLoading(false);
     });
 
-    return () => { unsub(); clearTimeout(timeoutId); };
+    return () => {
+      console.log('Unsubscribing from Firestore listener...');
+      unsub();
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   if (loading) {
