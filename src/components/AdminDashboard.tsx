@@ -26,7 +26,8 @@ import {
   orderBy,
   getDocFromServer,
   handleFirestoreError,
-  OperationType
+  OperationType,
+  serverTimestamp
 } from '../firebase';
 import { useAuth } from '../AuthContext';
 
@@ -80,7 +81,7 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
   };
 
   useEffect(() => {
-    console.log('Requesting Firestore (cv_content/default_resume)...');
+    console.log('Requesting Firestore (cv_content/shared_data)...');
     console.log('Firebase DB Instance:', db);
     
     let hasReceivedData = false;
@@ -93,7 +94,7 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
       }
     }, 3000);
 
-    const unsub = onSnapshot(doc(db, 'cv_content', 'default_resume'), { includeMetadataChanges: true }, (docSnap) => {
+    const unsub = onSnapshot(doc(db, 'cv_content', 'shared_data'), { includeMetadataChanges: true }, (docSnap) => {
       hasReceivedData = true;
       clearTimeout(timeoutId);
       
@@ -101,13 +102,16 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
       
       if (docSnap.exists()) {
         console.log('Data received from Firestore');
-        const data = docSnap.data() as FullResumeData;
-        setResume(data.resume || null);
-        setExperiences(data.experiences || []);
-        setProjects(data.projects || []);
+        const rawData = docSnap.data();
+        const data = rawData.content as FullResumeData;
+        if (data) {
+          setResume(data.resume || null);
+          setExperiences(data.experiences || []);
+          setProjects(data.projects || []);
+        }
         setError(null);
       } else {
-        console.log('No data found at cv_content/default_resume, initializing...');
+        console.log('No data found at cv_content/shared_data, initializing...');
         setError('尚未建立資料，請開始編輯並儲存。');
       }
       setLoading(false);
@@ -130,19 +134,24 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
   }, []);
 
   const saveAllData = async (updatedResume?: ResumeData, updatedExp?: Experience[], updatedProj?: Project[]) => {
-    const path = 'cv_content/default_resume';
+    const path = 'cv_content/shared_data';
     console.log(`Requesting Firestore Save (${path})...`);
     
-    const dataToSave: FullResumeData = {
+    const content: FullResumeData = {
       resume: updatedResume || resume || { name: '', title: '', location: '', email: '', phone: '', website: '', about: '' },
       experiences: updatedExp || experiences,
       projects: updatedProj || projects
     };
 
     try {
-      await setDoc(doc(db, 'cv_content', 'default_resume'), dataToSave);
-      console.log('資料已成功存入資料庫 (cv_content/default_resume)');
-      await getDocFromServer(doc(db, 'cv_content', 'default_resume'));
+      await setDoc(doc(db, 'cv_content', 'shared_data'), {
+        content: content,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      
+      console.log('資料已成功寫入資料庫 (cv_content/shared_data)');
+      alert('資料已成功寫入資料庫！');
+      await getDocFromServer(doc(db, 'cv_content', 'shared_data'));
       showToast("所有變更已儲存！");
     } catch (err) {
       console.error('Error details:', err);

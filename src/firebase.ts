@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, GithubAuthProvider, signInWithPopup, setPersistence, browserSessionPersistence, signInAnonymously } from 'firebase/auth';
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, addDoc, deleteDoc, query, orderBy, getDocFromServer, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc, collection, addDoc, deleteDoc, query, orderBy, getDocFromServer, enableIndexedDbPersistence, serverTimestamp, getDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyA2nknkSraM3rmuAhpCK1_IW2NkF9oYmV0",
@@ -70,5 +70,7 @@ export {
   deleteDoc,
   query,
   orderBy,
-  getDocFromServer
+  getDocFromServer,
+  serverTimestamp,
+  getDoc
 };

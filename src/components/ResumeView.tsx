@@ -70,7 +70,7 @@ export const ResumeView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('Requesting Firestore (cv_content/default_resume)...');
+    console.log('Requesting Firestore (cv_content/shared_data)...');
     console.log('Firebase DB Instance:', db);
     
     let hasReceivedData = false;
@@ -80,28 +80,29 @@ export const ResumeView: React.FC = () => {
       if (!hasReceivedData) {
         console.warn('Firebase server response timeout (3s). Using local/default data.');
         setLoading(false);
-        // We don't set an error here because we want to show whatever we have (cache or defaults)
       }
     }, 3000);
 
-    const unsub = onSnapshot(doc(db, 'cv_content', 'default_resume'), { includeMetadataChanges: true }, (docSnap) => {
+    const unsub = onSnapshot(doc(db, 'cv_content', 'shared_data'), { includeMetadataChanges: true }, (docSnap) => {
       hasReceivedData = true;
       clearTimeout(timeoutId);
       
       console.log('Snapshot received. Exists:', docSnap.exists(), 'From Cache:', docSnap.metadata.fromCache);
       
       if (docSnap.exists()) {
-        const data = docSnap.data() as FullResumeData;
-        if (data.resume) setResume(data.resume);
-        if (data.experiences) setExperiences(data.experiences);
-        if (data.projects) setProjects(data.projects);
+        const rawData = docSnap.data();
+        const data = rawData.content as FullResumeData;
+        if (data) {
+          if (data.resume) setResume(data.resume);
+          if (data.experiences) setExperiences(data.experiences);
+          if (data.projects) setProjects(data.projects);
+        }
         setError(null);
       } else {
-        console.log('No data found at cv_content/default_resume');
+        console.log('No data found at cv_content/shared_data');
         setError('尚未建立資料，請前往後台進行設定。');
       }
       
-      // Stop loading if we got server data OR if we have cached data
       setLoading(false);
     }, (err) => {
       clearTimeout(timeoutId);
