@@ -56,6 +56,12 @@ interface Project {
   link: string;
 }
 
+interface FullResumeData {
+  resume: ResumeData;
+  experiences: Experience[];
+  projects: Project[];
+}
+
 export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const { logout } = useAuth();
   const [resume, setResume] = useState<ResumeData | null>(null);
@@ -63,6 +69,7 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'about' | 'experience' | 'projects'>('about');
+  const [error, setError] = useState<string | null>(null);
   
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -73,106 +80,125 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
   };
 
   useEffect(() => {
-    const unsubResume = onSnapshot(doc(db, 'resume_data', 'main'), (docSnap) => {
+    console.log('Requesting Firestore (cv_content/default_resume)...');
+    
+    // Set a timeout for loading
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.error('Error details: Connection timeout (5s)');
+        setError('目前無法連線至資料庫，請檢查網路或稍後再試');
+        setLoading(false);
+      }
+    }, 5000);
+
+    const unsub = onSnapshot(doc(db, 'cv_content', 'default_resume'), (docSnap) => {
+      clearTimeout(timeoutId);
       if (docSnap.exists()) {
-        setResume(docSnap.data() as ResumeData);
+        console.log('Data received from Firestore');
+        const data = docSnap.data() as FullResumeData;
+        setResume(data.resume || null);
+        setExperiences(data.experiences || []);
+        setProjects(data.projects || []);
+      } else {
+        console.log('No data found at cv_content/default_resume, initializing...');
       }
       setLoading(false);
+      setError(null);
     }, (err) => {
-      console.error("Resume snapshot error:", err);
+      clearTimeout(timeoutId);
+      console.error('Error details:', err);
+      setError('讀取資料失敗，請確認權限');
       setLoading(false);
     });
 
-    const unsubExp = onSnapshot(query(collection(db, 'experience'), orderBy('period', 'desc')), (snap) => {
-      setExperiences(snap.docs.map(d => ({ id: d.id, ...d.data() } as Experience)));
-    });
-
-    const unsubProj = onSnapshot(collection(db, 'projects'), (snap) => {
-      setProjects(snap.docs.map(d => ({ id: d.id, ...d.data() } as Project)));
-    });
-
-    return () => { unsubResume(); unsubExp(); unsubProj(); };
+    return () => { unsub(); clearTimeout(timeoutId); };
   }, []);
 
-  const handleSaveAbout = async () => {
-    if (!resume) return;
-    const path = 'resume_data/main';
-    try {
-      await setDoc(doc(db, 'resume_data', 'main'), resume);
-      console.log('資料已成功存入資料庫 (resume_data/main)');
-      // 強制從伺服器讀取一次以驗證權限與寫入
-      await getDocFromServer(doc(db, 'resume_data', 'main'));
-      showToast("「關於我」已更新！");
-    } catch (err) {
-      console.error('儲存失敗:', err);
-      handleFirestoreError(err, OperationType.WRITE, path);
-      showToast("儲存失敗：權限不足或網路錯誤", "error");
-    }
-  };
+  const saveAllData = async (updatedResume?: ResumeData, updatedExp?: Experience[], updatedProj?: Project[]) => {
+    const path = 'cv_content/default_resume';
+    console.log(`Requesting Firestore Save (${path})...`);
+    
+    const dataToSave: FullResumeData = {
+      resume: updatedResume || resume || { name: '', title: '', location: '', email: '', phone: '', website: '', about: '' },
+      experiences: updatedExp || experiences,
+      projects: updatedProj || projects
+    };
 
-  const handleSaveExperience = async (id: string) => {
-    const exp = experiences.find(e => e.id === id);
-    if (!exp) return;
-    const path = `experience/${id}`;
     try {
-      const { id: _, ...data } = exp;
-      await setDoc(doc(db, 'experience', id), data);
-      console.log(`資料已成功存入資料庫 (experience/${id})`);
-      await getDocFromServer(doc(db, 'experience', id));
-      showToast("經歷已儲存");
+      await setDoc(doc(db, 'cv_content', 'default_resume'), dataToSave);
+      console.log('資料已成功存入資料庫 (cv_content/default_resume)');
+      await getDocFromServer(doc(db, 'cv_content', 'default_resume'));
+      showToast("所有變更已儲存！");
     } catch (err) {
-      console.error('儲存失敗:', err);
+      console.error('Error details:', err);
       handleFirestoreError(err, OperationType.WRITE, path);
       showToast("儲存失敗", "error");
     }
   };
 
-  const handleSaveProject = async (id: string) => {
-    const proj = projects.find(p => p.id === id);
-    if (!proj) return;
-    const path = `projects/${id}`;
-    try {
-      const { id: _, ...data } = proj;
-      await setDoc(doc(db, 'projects', id), data);
-      console.log(`資料已成功存入資料庫 (projects/${id})`);
-      await getDocFromServer(doc(db, 'projects', id));
-      showToast("專案已儲存");
-    } catch (err) {
-      console.error('儲存失敗:', err);
-      handleFirestoreError(err, OperationType.WRITE, path);
-      showToast("儲存失敗", "error");
-    }
+  const handleSaveAbout = () => saveAllData();
+
+  const handleSaveExperience = (id: string) => {
+    // In single doc mode, we just save the whole state
+    saveAllData();
   };
 
-  const handleAddExperience = async () => {
-    try {
-      await addDoc(collection(db, 'experience'), {
-        company: '新公司',
-        role: '新職位',
-        period: '2024 - Present',
-        description: '請輸入工作描述...'
-      });
-      showToast("已新增經歷");
-    } catch (err) {
-      showToast("新增失敗", "error");
-    }
+  const handleSaveProject = (id: string) => {
+    saveAllData();
   };
 
-  const handleAddProject = async () => {
-    try {
-      await addDoc(collection(db, 'projects'), {
-        title: '新專案',
-        description: '專案描述...',
-        tags: ['React', 'Tailwind'],
-        link: '#'
-      });
-      showToast("已初始化新專案");
-    } catch (err) {
-      showToast("新增失敗", "error");
-    }
+  const handleAddExperience = () => {
+    const newExp: Experience = {
+      id: crypto.randomUUID(),
+      company: '新公司',
+      role: '新職位',
+      period: '2024 - Present',
+      description: '請輸入工作描述...'
+    };
+    const newExperiences = [...experiences, newExp];
+    setExperiences(newExperiences);
+    saveAllData(undefined, newExperiences);
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">載入後台資料中...</div>;
+  const handleAddProject = () => {
+    const newProj: Project = {
+      id: crypto.randomUUID(),
+      title: '新專案',
+      description: '專案描述...',
+      tags: ['React', 'Tailwind'],
+      link: '#'
+    };
+    const newProjects = [...projects, newProj];
+    setProjects(newProjects);
+    saveAllData(undefined, undefined, newProjects);
+  };
+
+  const handleDeleteExperience = (id: string) => {
+    const newExperiences = experiences.filter(e => e.id !== id);
+    setExperiences(newExperiences);
+    saveAllData(undefined, newExperiences);
+  };
+
+  const handleDeleteProject = (id: string) => {
+    const newProjects = projects.filter(p => p.id !== id);
+    setProjects(newProjects);
+    saveAllData(undefined, undefined, newProjects);
+  };
+
+  if (loading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#E4E3E0]">
+      <div className="w-12 h-12 border-4 border-[#141414]/10 border-t-[#141414] rounded-full animate-spin mb-4" />
+      <p className="text-xs font-bold tracking-widest uppercase">Requesting Firestore...</p>
+    </div>
+  );
+
+  if (error) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#E4E3E0] p-8 text-center">
+      <AlertCircle size={48} className="text-red-600 mb-4" />
+      <p className="text-lg font-bold mb-4">{error}</p>
+      <button onClick={() => window.location.reload()} className="px-6 py-3 bg-[#141414] text-white text-xs font-bold uppercase tracking-widest">重試</button>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-[#E4E3E0] text-[#141414] font-mono selection:bg-[#141414] selection:text-[#E4E3E0] flex">
@@ -364,7 +390,7 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
                               <Save size={14} />
                             </button>
                             <button 
-                              onClick={() => deleteDoc(doc(db, 'experience', exp.id))}
+                              onClick={() => handleDeleteExperience(exp.id)}
                               className="p-2 text-red-600 hover:bg-red-50 transition-all rounded-lg"
                               title="Delete Entry"
                             >
@@ -418,7 +444,7 @@ export const AdminDashboard: React.FC<{ onBack?: () => void }> = ({ onBack }) =>
                           <Save size={16} />
                         </button>
                         <button 
-                          onClick={() => deleteDoc(doc(db, 'projects', project.id))}
+                          onClick={() => handleDeleteProject(project.id)}
                           className="p-2 text-red-600 hover:bg-red-50 transition-all rounded-lg"
                           title="Delete Project"
                         >

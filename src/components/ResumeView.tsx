@@ -37,6 +37,12 @@ interface Project {
   link: string;
 }
 
+interface FullResumeData {
+  resume: ResumeData;
+  experiences: Experience[];
+  projects: Project[];
+}
+
 const DEFAULT_RESUME: ResumeData = {
   name: "陳慶儒",
   title: "全端工程師 / 使用者體驗設計師",
@@ -61,36 +67,40 @@ export const ResumeView: React.FC = () => {
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('正在從 Firestore 讀取資料...');
+    console.log('Requesting Firestore (cv_content/default_resume)...');
     
-    const unsubResume = onSnapshot(doc(db, 'resume_data', 'main'), (docSnap) => {
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.error('Error details: Connection timeout (5s)');
+        setError('目前無法連線至資料庫，請檢查網路或稍後再試');
+        setLoading(false);
+      }
+    }, 5000);
+
+    const unsub = onSnapshot(doc(db, 'cv_content', 'default_resume'), (docSnap) => {
+      clearTimeout(timeoutId);
       if (docSnap.exists()) {
-        console.log('已從 Firestore 讀取 resume_data');
-        setResume(docSnap.data() as ResumeData);
+        console.log('Data received from Firestore');
+        const data = docSnap.data() as FullResumeData;
+        if (data.resume) setResume(data.resume);
+        if (data.experiences) setExperiences(data.experiences);
+        if (data.projects) setProjects(data.projects);
+      } else {
+        console.log('No data found at cv_content/default_resume');
       }
       setLoading(false);
+      setError(null);
     }, (err) => {
-      console.error('讀取 resume_data 失敗:', err);
+      clearTimeout(timeoutId);
+      console.error('Error details:', err);
+      setError('讀取資料失敗，請稍後再試');
       setLoading(false);
     });
 
-    const unsubExp = onSnapshot(query(collection(db, 'experience'), orderBy('period', 'desc')), (snap) => {
-      console.log('已從 Firestore 讀取 experience');
-      setExperiences(snap.docs.map(d => ({ id: d.id, ...d.data() } as Experience)));
-    }, (err) => {
-      console.error('讀取 experience 失敗:', err);
-    });
-
-    const unsubProj = onSnapshot(collection(db, 'projects'), (snap) => {
-      console.log('已從 Firestore 讀取 projects');
-      setProjects(snap.docs.map(d => ({ id: d.id, ...d.data() } as Project)));
-    }, (err) => {
-      console.error('讀取 projects 失敗:', err);
-    });
-
-    return () => { unsubResume(); unsubExp(); unsubProj(); };
+    return () => { unsub(); clearTimeout(timeoutId); };
   }, []);
 
   if (loading) {
@@ -98,8 +108,26 @@ export const ResumeView: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-[#F8F9FA]">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-gray-200 border-t-black rounded-full animate-spin" />
-          <p className="text-sm font-bold tracking-widest uppercase text-gray-400">Loading_Data...</p>
+          <p className="text-xs font-bold tracking-widest uppercase text-gray-400">Requesting Firestore...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8F9FA] p-8 text-center">
+        <div className="w-16 h-16 bg-red-50 text-red-600 rounded-3xl flex items-center justify-center mb-6">
+          <Globe size={32} />
+        </div>
+        <h2 className="text-2xl font-bold mb-4">連線中斷</h2>
+        <p className="text-gray-500 max-w-md mb-8 leading-relaxed">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="bg-black text-white px-8 py-4 rounded-2xl font-bold hover:opacity-90 transition-all"
+        >
+          重新連線
+        </button>
       </div>
     );
   }
